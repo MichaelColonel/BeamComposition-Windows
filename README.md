@@ -1,3 +1,3 @@
-Program for Channel25 (Windows)
+Program for charge beam composition measurement (Linux)
 
-Dependencies are: MSVC 2010, Qt-5.2.1, ROOT-5.36
+Dependencies are: gcc with C++11 support, Qt-4.8, ROOT-6.06 with Qt support, BOOST, ftd2xx library for FT2232H USB chip

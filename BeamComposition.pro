@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT += core gui widgets
+QT += core gui
 
 CONFIG += qt warn_on thread
 
@@ -18,6 +18,8 @@ exists ($(ROOTSYS)/include/rootcint.pri) {
 }
 
 win32:INCLUDEPATH += C:\root\include
+
+#INCLUDEPATH += /usr/local/GATE/include/root
 
 #LIBS += -L/usr/local/GATE/lib/root -lCore -lCint -lRIO -lNet -lHist \
 #        -lGraf -lGraf3d -lGpad -lTree -lRint -lPostscript -lMatrix \
@@ -80,12 +82,11 @@ FORMS    += mainwindow.ui \
     settingsdialog.ui \
     signalvaluedialog.ui
 
-LIBS += -lftd2xx
+unix:LIBS += -lftd2xx
 
 RESOURCES += BeamComposition.qrc
 
 TRANSLATIONS += BeamComposition_ru.ts
 
-win32: LIBS += -L$$PWD/../FTDI_DriverNew/i386/
-win32: INCLUDEPATH += $$PWD/../FTDI_DriverNew
-win32: DEPENDPATH += $$PWD/../FTDI_DriverNew
+win32:LIBS += -L$$PWD/../FTDI_DriverNew/i386/ -lftd2xx
+win32:INCLUDEPATH += $$PWD/../FTDI_DriverNew

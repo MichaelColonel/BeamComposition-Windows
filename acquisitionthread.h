@@ -20,14 +20,13 @@
 #include <QThread>
 
 /*
-#ifdef Q_OS_WIN32 // for MinGW
+#ifdef Q_OS_WIN32
 #include <windef.h>
 #include <winbase.h>
 #endif
 */
 
 #include <ftd2xx.h>
-
 #include "runinfo.h"
 #include "typedefs.h"
 
@@ -85,13 +84,13 @@ protected:
 private:
     void batch_to_counts( CountsList& list, const DataVector& batch) const {
         CountsArray counts = BufferData(batch).array();
-        list.append(counts);
+        list.push_back(counts);
     }
 
     // ADC count from high and low data bytes
     class Count {
     public:
-        explicit Count( quint8 h, quint8 l) : high(h), low(l) {}
+        explicit Count( quint8 hi, quint8 lo) : high(hi), low(lo) {}
 #define BO 6 // high byte bits offset
 #define MO 2 // mask bits offset
         quint16 value() const { return (high >> MO) << BO | low >> MO; }
@@ -145,6 +144,7 @@ public:
         filename = fname; flag_background = background_data;
         process_type = PROCESS_FILE;
     }
+
     RunInfo runInfo() const { return runinfo; }
 
 public slots:

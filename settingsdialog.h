@@ -49,7 +49,8 @@ private slots:
     void signalCountsCellClicked( int, int);
     void signalCountsCellChanged( int, int);
     void chargeCountsCellChanged( int, int);
-    void signalCountsRowSelected(int);
+    void signalCountsRowSelected(int); // Reference signal, Channels counts matrix
+    void chargeSignalRowSelected(int); // Charge, Reference signal matrix
     void signalCountsDeleteRowClicked();
     void signalCountsAddRowBelowClicked();
     void signalCountsAddRowAboveClicked();
@@ -67,8 +68,7 @@ private:
     QString rundir;
     QSettings* settings;
     int selected_row;
-    int lfit_ch;
-    int lfit_pos1;
-    int lfit_pos2;
+    int reference_charge;
+    int projectile_charge;
     SharedFitParameters params;
 };

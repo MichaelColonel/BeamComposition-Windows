@@ -29,11 +29,11 @@ main( int argc, char** argv)
     TApplication rootapp( "Qt ROOT Application", &argc, argv);
     QApplication app( argc, argv);
 
-    QTranslator* translator = new QTranslator;
+    QTranslator* translator = new QTranslator();
     translator->load( "BeamComposition_" + QLocale::system().name());
     app.installTranslator(translator);
 
-    MainWindow* window = new MainWindow;
+    MainWindow* window = new MainWindow();
     window->show();
 
     int res = app.exec();

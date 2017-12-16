@@ -18,10 +18,10 @@
 #pragma once
 
 #include <queue>
-#include <vector>
+#include <string>
 #include "acquisitionthread.h"
 
-#include <ftd2xx.h>
+#define COMMAND_SIZE 4
 
 class CommandThread : public AcquireThread {
     Q_OBJECT
@@ -29,10 +29,10 @@ public:
     explicit CommandThread(QObject* parent = 0);
     virtual ~CommandThread();
     void initiate(int delay);
-    void writeCommand( const char* cmd, size_t cmd_size);
+    void writeCommand( const char* cmd, size_t cmd_size = COMMAND_SIZE);
 
 signals:
-    void signalNewBatch();
+    void signalExternalSignal();
     void signalMovementFinished();
     void signalNewBatchState(bool);
     void signalStatusBarMessage(QString);
@@ -40,5 +40,7 @@ signals:
 
 protected:
     virtual void run();
-    std::queue< std::vector<char> > commands;
+
+    std::queue< std::string > commands;
+    char* buffer;
 };

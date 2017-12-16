@@ -29,12 +29,16 @@ public:
         :
         QTreeWidgetItem(QTreeWidgetItem::UserType),
         root_diagram_type(diagram_type),
-//        root_diagram_tuple(std::make_tuple( nullptr, nullptr)),
+#ifdef Q_OS_LINUX
+        root_diagram_tuple(std::make_tuple( nullptr, nullptr)),
+#endif
         root_canvas_dialog(nullptr)
     {
+#ifdef Q_OS_WIN
         TH1* h1 = nullptr;
         TH2* h2 = nullptr;
         root_diagram_tuple = std::make_tuple( h1, h2);
+#endif
     }
 
     virtual ~DiagramTreeWidgetItem();

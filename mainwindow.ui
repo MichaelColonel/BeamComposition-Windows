@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>293</width>
-    <height>771</height>
+    <width>308</width>
+    <height>776</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -61,8 +61,8 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>262</width>
-         <height>748</height>
+         <width>277</width>
+         <height>784</height>
         </rect>
        </property>
        <attribute name="label">
@@ -121,26 +121,16 @@
              <item row="2" column="1">
               <widget class="QComboBox" name="delayTimeComboBox">
                <property name="currentIndex">
-                <number>4</number>
+                <number>2</number>
                </property>
                <item>
                 <property name="text">
-                 <string>20 ms</string>
+                 <string>Off</string>
                 </property>
                </item>
                <item>
                 <property name="text">
-                 <string>40 ms</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>60 ms</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>80 ms</string>
+                 <string>50 ms</string>
                 </property>
                </item>
                <item>
@@ -150,27 +140,37 @@
                </item>
                <item>
                 <property name="text">
-                 <string>120 ms</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>140 ms</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>160 ms</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>180 ms</string>
+                 <string>150 ms</string>
                 </property>
                </item>
                <item>
                 <property name="text">
                  <string>200 ms</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>250 ms</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>300 ms</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>350 ms</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>400 ms</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>450 ms</string>
                 </property>
                </item>
               </widget>
@@ -180,7 +180,7 @@
                <item>
                 <widget class="QRadioButton" name="dataUpdateAutoRadioButton">
                  <property name="text">
-                  <string>Per constant timeout</string>
+                  <string>Constant Timeout</string>
                  </property>
                  <attribute name="buttonGroup">
                   <string notr="true">updateDataButtonGroup</string>
@@ -188,9 +188,9 @@
                 </widget>
                </item>
                <item>
-                <widget class="QRadioButton" name="dataUpdateSpillRadioButton">
+                <widget class="QRadioButton" name="dataUpdateStartRadioButton">
                  <property name="text">
-                  <string>Per spill</string>
+                  <string>External Start Signal</string>
                  </property>
                  <attribute name="buttonGroup">
                   <string notr="true">updateDataButtonGroup</string>
@@ -354,12 +354,12 @@
               </widget>
              </item>
              <item row="9" column="1" colspan="2">
-              <widget class="QPushButton" name="alteraResetPushButton">
+              <widget class="QPushButton" name="resetAlteraPushButton">
                <property name="toolTip">
                 <string>Altera Reset</string>
                </property>
                <property name="text">
-                <string>Reset Altera</string>
+                <string>Reset ALTERA</string>
                </property>
               </widget>
              </item>
@@ -453,6 +453,9 @@
                <property name="toolTip">
                 <string>Internal triggers generator (pulses per second).</string>
                </property>
+               <property name="currentIndex">
+                <number>0</number>
+               </property>
                <item>
                 <property name="text">
                  <string>Off</string>
@@ -460,42 +463,47 @@
                </item>
                <item>
                 <property name="text">
-                 <string>122</string>
+                 <string>3906 Hz</string>
                 </property>
                </item>
                <item>
                 <property name="text">
-                 <string>244</string>
+                 <string>1953 Hz</string>
                 </property>
                </item>
                <item>
                 <property name="text">
-                 <string>488</string>
+                 <string>1302 Hz</string>
                 </property>
                </item>
                <item>
                 <property name="text">
-                 <string>976</string>
+                 <string>976 Hz</string>
                 </property>
                </item>
                <item>
                 <property name="text">
-                 <string>1952</string>
+                 <string>781 Hz</string>
                 </property>
                </item>
                <item>
                 <property name="text">
-                 <string>3904</string>
+                 <string>651 Hz</string>
                 </property>
                </item>
                <item>
                 <property name="text">
-                 <string>7808</string>
+                 <string>558 Hz</string>
                 </property>
                </item>
                <item>
                 <property name="text">
-                 <string>15616</string>
+                 <string>488 Hz</string>
+                </property>
+               </item>
+               <item>
+                <property name="text">
+                 <string>434 Hz</string>
                 </property>
                </item>
               </widget>
@@ -567,8 +575,8 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>275</width>
-         <height>579</height>
+         <width>290</width>
+         <height>571</height>
         </rect>
        </property>
        <attribute name="label">
@@ -614,8 +622,8 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>275</width>
-         <height>579</height>
+         <width>290</width>
+         <height>571</height>
         </rect>
        </property>
        <property name="sizePolicy">
@@ -828,8 +836,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>293</width>
-     <height>25</height>
+     <width>308</width>
+     <height>28</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -863,6 +871,8 @@
    <addaction name="actionSaveRun"/>
    <addaction name="separator"/>
    <addaction name="actionSettings"/>
+   <addaction name="separator"/>
+   <addaction name="actionQuit"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
   <action name="actionOpenRun">
@@ -966,6 +976,14 @@
    </property>
    <property name="toolTip">
     <string>Select all batches</string>
+   </property>
+  </action>
+  <action name="actionDetailsSelectNone">
+   <property name="text">
+    <string>Select None</string>
+   </property>
+   <property name="toolTip">
+    <string>Select none batches</string>
    </property>
   </action>
  </widget>

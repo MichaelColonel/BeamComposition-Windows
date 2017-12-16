@@ -44,6 +44,7 @@ class QListWidgetItem;
 class QCloseEvent;
 class QProgressDialog;
 class QSettings;
+class QDateTime;
 
 class CommandThread;
 class AcquireThread;
@@ -55,7 +56,7 @@ class RootCanvasDialog;
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
-    
+
 public:
     explicit MainWindow(QWidget* parent = 0);
     virtual ~MainWindow();
@@ -70,8 +71,8 @@ private slots:
     void handle_root_events();
     void treeWidgetItemDoubleClicked( QTreeWidgetItem*, int);
     void treeWidgetItemClicked( QTreeWidgetItem*, int);
-//    void newBatchRecieved();
-    void newBatchStateRecieved(bool);
+    void externalSignalReceived();
+    void newBatchStateReceived(bool);
     void movementFinished();
     void commandThreadStarted();
     void commandThreadFinished();
@@ -83,7 +84,6 @@ private slots:
     void processThreadFinished();
     void acquireDeviceError();
     void commandDeviceError();
-    void processData();
     void connectDevices();
     void disconnectDevices();
     void startRun();
@@ -93,7 +93,7 @@ private slots:
     void openFile(bool background_data);
     void openBackRun();
     void setRunSettings();
-    void alteraResetClicked();
+    void resetAlteraClicked();
     void setDelayChanged(int);
     void updateDiagrams(bool background_data = false);
     void resetDiagram(DiagramType type);
@@ -108,16 +108,20 @@ private slots:
     void dataUpdateChanged(int);
     void detailsClear();
     void detailsSelectAll();
+    void detailsSelectNone();
     void detailsItemSelectionChanged();
     void processBatchesClicked();
+    void processData();
 
 private:
     QString processTextFile( QFile* runfile, QList<QListWidgetItem*>& items);
-    void batchDataReceived(const DataList& list);
-    void batchCountsReceived(const CountsList& list);
+    bool processRawFile( QFile* runfile, QList<QListWidgetItem*>& items);
+    void batchDataReceived( const DataList& list, const QDateTime&);
+    RunInfo batchCountsReceived(const CountsList& list);
     void saveSettings(QSettings* set);
     void loadSettings(QSettings* set);
     void deviceError( FT_HANDLE, FT_STATUS);
+
 
     void createTreeWidgetItems();
     void createRootHistograms();
@@ -128,10 +132,11 @@ private:
     QTimer* timer; // ROOT GUI update timer
     QTimer* timerdata; // data update timer
 
-    FT_HANDLE deva;
-    FT_HANDLE devb;
+    FT_HANDLE channel_a;
+    FT_HANDLE channel_b;
     QFile* filerun;
     QFile* filetxt;
+    QFile* filedat;
 
     CommandThread* command_thread;
     AcquireThread* acquire_thread;

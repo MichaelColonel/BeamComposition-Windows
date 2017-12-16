@@ -16,7 +16,7 @@
  */
 
 #include <QDataStream>
-#include <QTextStream>
+//#include <QTextStream>
 #include <QFile>
 
 #include "writeprocess.h"
@@ -37,15 +37,18 @@ WriteDataProcess::run()
 {
     if (filerun && filerun->isOpen()) {
         QDataStream out(filerun);
-//        for ( quint8 value : data) {
+#ifdef Q_OS_WIN
         for ( DataList::const_iterator it = data.begin(); it != data.end(); ++it) {
             const quint8& value = *it;
+#elif defined(Q_OS_LINUX)
+        for ( quint8 value : data) {
+#endif
             out << value;
         }
         filerun->flush();
     }
 }
-
+/*
 WriteCountsProcess::WriteCountsProcess( QFile* file, const CountsList& c)
     :
     WriteDataProcess(file),
@@ -62,11 +65,40 @@ WriteCountsProcess::run()
 {
     if (filerun && filerun->isOpen()) {
         QTextStream out(filerun);
-//        for ( const CountsArray& array : counts) {
-        for ( CountsList::const_iterator it = counts.begin(); it != counts.end(); ++it) {
-            const CountsArray& array = *it;
+        for ( const CountsArray& array : counts) {
             out << array[0] << " " << array[1] << " ";
             out << array[2] << " " << array[3] << endl;
         }
+    }
+}
+*/
+WriteDataTimeProcess::WriteDataTimeProcess( QFile* file, time_t tm, const DataList& d)
+    :
+    WriteDataProcess( file, d),
+    datetime(tm)
+{
+}
+
+WriteDataTimeProcess::~WriteDataTimeProcess()
+{
+}
+
+void
+WriteDataTimeProcess::run()
+{
+    if (filerun && filerun->isOpen()) {
+        QDataStream out(filerun);
+        out.setByteOrder(QDataStream::LittleEndian);
+        out << quint64(datetime);
+        out << quint32(data.size());
+#ifdef Q_OS_WIN
+        for ( DataList::const_iterator it = data.begin(); it != data.end(); ++it) {
+            const quint8& value = *it;
+#elif defined(Q_OS_LINUX)
+        for ( quint8 value : data) {
+#endif
+            out << value;
+        }
+        filerun->flush();
     }
 }

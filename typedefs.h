@@ -17,14 +17,14 @@
 
 #pragma once
 
-#include <QList>
-
-#include <utility>
+#include <list>
 #include <tuple>
 #include <array>
 #include <vector>
 #include <queue>
 #include <map>
+
+#include <qglobal.h>
 
 #define CHANNELS 4
 #define CARBON_Z 6
@@ -34,7 +34,20 @@ class TH2;
 
 typedef std::tuple< TH1*, TH2* > DiagramTuple;
 typedef std::tuple< TH1**, TH2** > DiagramsTuple;
-typedef std::array< quint16, CHANNELS > CountsArray;
+typedef std::array< unsigned short, CHANNELS > CountsArray;
+
+typedef std::list< CountsArray > CountsList;
+typedef std::list< unsigned char > DataList;
+
+typedef std::vector< unsigned char > DataVector;
+typedef std::queue< DataVector > DataQueue;
+
+// pair.first: mu -- mean, average value
+// pair.second: sigma -- RMS, sqrt(variance)
+typedef std::pair< double, double > SignalPair;
+typedef std::array< SignalPair, CHANNELS > SignalArray;
+typedef std::map< double, SignalArray > ReferenceSignalMap;
+typedef std::map< int, SignalPair > ChargeSignalMap;
 
 // Acquisition run type
 enum RunType {
@@ -50,13 +63,19 @@ enum DiagramType {
     HIST_CHANNEL2,
     HIST_CHANNEL3,
     HIST_CHANNEL4,
-    HIST_FIT,
+    HIST_FITALL,
+    HIST_FIT_CHANNEL1,
+    HIST_FIT_CHANNEL2,
+    HIST_FIT_CHANNEL3,
+    HIST_FIT_CHANNEL4,
+    HIST_FIT_MEAN,
+    HIST_FIT_MEDIAN,
     HIST_RANK1,
     HIST_RANK2,
     HIST_RANK3,
     HIST_RANK4,
-    HIST_SQRT_FIT,
     HIST_Z,
+    HIST_Z2,
     HIST_CHANNEL12,
     HIST_CHANNEL23,
     HIST_CHANNEL34,
@@ -71,25 +90,14 @@ enum DiagramType {
     HIST_Z24
 };
 
-typedef QList< CountsArray > CountsList;
-typedef QList<quint8> DataList;
-
-typedef std::vector<quint8> DataVector;
-typedef std::queue< DataVector > DataQueue;
-
-// pair.first: mu -- mean, average value
-// pair.second: sigma -- RMS, sqrt(variance)
-typedef std::pair< double, double > SignalPair;
-typedef std::array< SignalPair, CHANNELS > SignalArray;
-typedef std::map< double, SignalArray > ReferenceSignalMap;
-typedef std::map< int, SignalPair > ChargeSignalMap;
-
 struct Diagrams {
     Diagrams()
         :
-        fit(nullptr),
-        sqrt_fit(nullptr),
+        fitall(nullptr),
+        fit_mean(nullptr),
+        fit_median(nullptr),
         z(nullptr),
+        z2(nullptr),
         c12(nullptr),
         c23(nullptr),
         c34(nullptr),
@@ -103,20 +111,26 @@ struct Diagrams {
         z14(nullptr),
         z24(nullptr)
     {
+#ifdef Q_OS_WIN
         for ( int i = 0; i < CHANNELS; ++i) {
             channels[i] = nullptr;
             rank[i] = nullptr;
+            fit[i] = nullptr;
         }
-
-//        std::fill( channels, channels + CHANNELS, nullptr);
-//        std::fill( rank, rank + CHANNELS, nullptr);
+#elif defined(Q_OS_LINUX)
+        std::fill( channels, channels + CHANNELS, nullptr);
+        std::fill( rank, rank + CHANNELS, nullptr);
+        std::fill( fit, fit + CHANNELS, nullptr);
+#endif
     }
 
     Diagrams(const Diagrams& src)
         :
-        fit(src.fit),
-        sqrt_fit(src.sqrt_fit),
+        fitall(src.fitall),
+        fit_mean(src.fit_mean),
+        fit_median(src.fit_median),
         z(src.z),
+        z2(src.z2),
         c12(src.c12),
         c23(src.c23),
         c34(src.c34),
@@ -130,24 +144,36 @@ struct Diagrams {
         z14(src.z14),
         z24(src.z24)
     {
+#ifdef Q_OS_WIN
         for ( int i = 0; i < CHANNELS; ++i) {
             this->channels[i] = src.channels[i];
             this->rank[i] = src.rank[i];
+            this->fit[i] = src.fit[i];
         }
-//        std::copy( src.channels, src.channels + CHANNELS, this->channels);
-//        std::copy( src.rank, src.rank + CHANNELS, this->rank);
+#elif defined(Q_OS_LINUX)
+        std::copy( src.channels, src.channels + CHANNELS, this->channels);
+        std::copy( src.rank, src.rank + CHANNELS, this->rank);
+        std::copy( src.fit, src.fit + CHANNELS, this->fit);
+#endif
     }
 
     Diagrams& operator=(const Diagrams& src) {
-//        std::copy( src.channels, src.channels + CHANNELS, this->channels);
-//        std::copy( src.rank, src.rank + CHANNELS, this->rank);
+#ifdef Q_OS_WIN
         for ( int i = 0; i < CHANNELS; ++i) {
             this->channels[i] = src.channels[i];
             this->rank[i] = src.rank[i];
+            this->fit[i] = src.fit[i];
         }
-        this->fit = src.fit;
-        this->sqrt_fit = src.sqrt_fit;
+#elif defined(Q_OS_LINUX)
+        std::copy( src.channels, src.channels + CHANNELS, this->channels);
+        std::copy( src.rank, src.rank + CHANNELS, this->rank);
+        std::copy( src.fit, src.fit + CHANNELS, this->fit);
+#endif
+        this->fitall = src.fitall;
+        this->fit_mean = src.fit_mean;
+        this->fit_median = src.fit_median;
         this->z = src.z;
+        this->z2 = src.z2;
         this->c12 = src.c12;
         this->c23 = src.c23;
         this->c34 = src.c34;
@@ -164,10 +190,13 @@ struct Diagrams {
     }
 
     TH1* channels[CHANNELS];
-    TH1* fit;
     TH1* rank[CHANNELS];
-    TH1* sqrt_fit;
+    TH1* fit[CHANNELS];
+    TH1* fitall;
+    TH1* fit_mean;
+    TH1* fit_median;
     TH1* z;
+    TH1* z2;
     TH2* c12;
     TH2* c23;
     TH2* c34;

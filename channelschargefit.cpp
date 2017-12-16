@@ -79,12 +79,15 @@ BeamCompositionFit::fit_parameters() const
     size_t npeaks = params.size();
     double* par = new double[npeaks * gparams];
     int i = 0;
-//    for( const auto& pair : params) {
-//        for ( double value : pair.second) {
+#ifdef Q_OS_WIN
     for ( ChargeGausParametersMap::const_iterator it = params.begin(); it != params.end(); ++it) {
         const GausParameters& values = it->second;
         for ( GausParameters::const_iterator iter = values.begin(); iter != values.end(); ++iter) {
             const double& value = *iter;
+#elif defined(Q_OS_LINUX)
+    for( const auto& pair : params) {
+        for ( double value : pair.second) {
+#endif
             par[i++] = value;
         }
     }
@@ -97,12 +100,15 @@ BeamCompositionFit::fit_errors() const
     size_t npeaks = errors.size();
     double* par = new double[npeaks * gparams];
     int i = 0;
-//    for( const auto& pair : errors) {
-//        for ( double value : pair.second) {
+#ifdef Q_OS_WIN
     for ( ChargeGausParametersMap::const_iterator it = params.begin(); it != params.end(); ++it) {
         const GausParameters& values = it->second;
         for ( GausParameters::const_iterator iter = values.begin(); iter != values.end(); ++iter) {
             const double& value = *iter;
+#elif defined(Q_OS_LINUX)
+    for( const auto& pair : errors) {
+        for ( double value : pair.second) {
+#endif
             par[i++] = value;
         }
     }
@@ -127,11 +133,14 @@ GausParametersPair
 BeamCompositionFit::fit_gaus( TH1* hist, double z, double dz) const
 {
     TF1 *fun = new TF1( "fun", "gaus", z - dz, z + dz);
-    GausParameters gpar;//({ 100. , z,  dz}); // values (norm, mean, sigma)
+#ifdef Q_OS_WIN
+    GausParameters gpar;
     gpar[0] = 100.;
     gpar[1] = z;
     gpar[2] = dz;
-
+#elif defined(Q_OS_LINUX)
+    GausParameters gpar({ 100. , z,  dz}); // values (norm, mean, sigma)
+#endif
     GausParameters gepar; // errors
     fun->SetParameters(gpar.data());
     hist->Fit(fun);
@@ -184,8 +193,8 @@ BeamCompositionFit::fit( BeamCompositionFit& fbeam, TH1* hist,
     fit->SetLineColor(kBlack);
     fit->SetLineStyle(1);
     for ( unsigned int i = zmin; i <= zmax; ++i) {
-        if (!(fit_it[i - 1]))
-            continue;
+//        if (!(fit_it[i - 1]))
+//            continue;
         size_t pos = gparams * (i - zmin);
         for ( int j = 0; j < gparams; ++j)
             fit->SetParName( pos + j, fit_parameters_names[gparams * (i - 1) + j]);
@@ -195,7 +204,7 @@ BeamCompositionFit::fit( BeamCompositionFit& fbeam, TH1* hist,
 //	ft->FixParameter(17);
     fit->SetParameters(par);
     fit->SetParErrors(epar);
-    fit->SetNpx(200);
+    fit->SetNpx(400);
 //    hist->Fit( "fit", "+rob=0.75", "ep");
     hist->Fit( "fit", "RB0", "ep");
 

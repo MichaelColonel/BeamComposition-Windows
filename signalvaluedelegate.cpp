@@ -17,9 +17,16 @@
  *
  */
 
-#include <QtGui>
+#include <QtCore>
 
-#include <QDoubleSpinBox>
+#if QT_VERSION >= 0x050000
+#include <QtGui>
+#include <QtWidgets/QDoubleSpinBox>
+#include <QtWidgets/QCheckBox>
+#elif (QT_VERSION >= 0x040000 && QT_VERSION < 0x050000)
+#include <QtGui>
+#endif
+
 
 #include "backgroundvaluedelegate.h"
 #include "signalvaluedialog.h"
@@ -142,11 +149,16 @@ SignalValueDelegate::commitAndCloseEditor()
 {
     SignalValueDialog* dialog = qobject_cast<SignalValueDialog*>(sender());
     QDoubleSpinBox* spinbox = qobject_cast<QDoubleSpinBox*>(sender());
+    QCheckBox* checkbox = qobject_cast<QCheckBox*>(sender());
     if (dialog) {
         emit commitData(dialog);
         emit closeEditor(dialog);
     }
     else if (spinbox) {
+        emit commitData(spinbox);
+        emit closeEditor(spinbox);
+    }
+    else if (checkbox) {
         emit commitData(spinbox);
         emit closeEditor(spinbox);
     }
@@ -177,8 +189,8 @@ SignalValueDelegate::parse_text(const QString& str)
 QString
 SignalValueDelegate::form_text(const SignalPair& p)
 {
-    QString m(tr("%1").arg( p.first, 4, 'f', 1));
-    QString s(tr("%1").arg( p.second, 4, 'f', 1));
+    QString m(tr("%1").arg( p.first, 4, 'f', 2));
+    QString s(tr("%1").arg( p.second, 4, 'f', 2));
 
     return QString(tr("%1 %2 %3").arg(m).arg(QChar(0xB1)).arg(s));
 }

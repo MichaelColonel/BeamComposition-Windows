@@ -141,7 +141,7 @@ const ReferenceCountsSignals reference_signal_counts_data[N] = {
     { 400.0, 2690.0, 16.7, 2022.0,  11.6, 2608.0, 24.4, 2695.0, 17.4 },
     { 450.0, 2804.0, 16.8, 2084.0,  11.0, 2689.0, 27.3, 2791.0, 16.9 }
 };
-
+/*
 const struct ChargeCountsSignals {
     int z;
     double mean;
@@ -154,6 +154,20 @@ const struct ChargeCountsSignals {
     {  5, 1300.0,   120.9 },
     {  6, 2000.0,   200.4 }
 };
+*/
+
+const struct ChargeCountsSignals {
+    int z;
+    double mean;
+    double sigma;
+} charge_counts_data[CARBON_Z] = {
+    {  1,   3.59,   0.27 },
+    {  2,     0.,   0. },
+    {  3,     0.,   0. },
+    {  4,     0.,   0. },
+    {  5,     0.,   0. },
+    {  6,  216.4,  18.42 }
+};
 
 double* fit_data[SIZE] = {};
 
@@ -162,7 +176,7 @@ splfit( double w, double *x, double *y, double *z, int m, double tn)
 {
     return (tn != 0.) ? tnsfit( w, x, y, z, m, tn) : csfit( w, x, y, z, m);
 }
-
+/*
 const double mc2e = 511000.; // eV
 const double Imean = 173.; // eV
 
@@ -174,8 +188,106 @@ correction(double beta)
     double res = (::log(k) - beta * beta) / (beta * beta);
     return res;
 }
+*/
+/*
+const double mc2e = 510998.91844E-09; // GeV
+const double Imean = 173.0E-09; // GeV
 
-double channel_amp[CHANNELS] = { 1.0, 1.007829, 0.950407, 1.011209 };
+const double projmass[CARBON_Z] = { 0.93827231, 3.727, 6.534, 8.393, 10.25, 11.17 }; // GeV
+
+double tmax( double beta2, double gamma, double gamma2, double prom)
+{
+    double t = mc2e / prom;
+    double part2 = 1. + (2. * gamma * t) + t * t;
+    double part1 = 2. * mc2e * beta2 * gamma2;
+    return (part1 / part2);
+}
+
+double
+correction( double beta, double projm)
+{
+    double beta2 = beta * beta;
+    double gamma2 = 1. / (1. - beta2);
+    double gamma = sqrt(gamma2);
+    double tm = tmax( beta2, gamma, gamma2, projm);
+    double k = (2. * mc2e * beta2 * gamma2 * tm) / (Imean * Imean);
+    double res = (0.5 * ::log(k) - beta2) / (beta2);
+    return res;
+}
+*/
+
+const double mc2e = 510998.91844E-09; // GeV
+const double Imean = 173.0E-09; // GeV
+const double hwp = 31.05E-09; // GeV
+
+const double projmass[6] = { 0.93827231, 3.727, 6.534, 8.393, 10.25, 11.17 }; // GeV
+
+const double cmean = 2. * log(173. / 31.05) + 1.;
+const double k = 3.;
+const double x0 = 3.;
+
+double tmax( double beta2, double gamma_, double gamma2, double prom)
+{
+    double t = mc2e / prom;
+    double part2 = 1. + (2. * gamma_ * t) + t * t;
+    double part1 = 2. * mc2e * beta2 * gamma2;
+    return (part1 / part2);
+}
+
+double
+xparam( double beta, double gamma)
+{
+    return log10(beta * gamma);
+}
+
+double
+x1()
+{
+    return (cmean < 5.215) ? 0.2 : (0.325 * cmean) - 1.5;
+}
+
+double
+delta( double x_, double x0_, double x1_, double k_) {
+    double a = (cmean - 2. * log(10.) * x0_) / pow( (x1_ - x0_), 3.);
+
+    double res = 0.;
+    if (x_ >= x1_) {
+        res = (2. * log(10.) * x_ - cmean);
+    }
+    else if ((x_ >= x0_) && (x_ < x1_)) {
+        res = (2. * log(10.) * x_ - cmean + a * pow((x1_ - x_), k_));
+    }
+    else if (x_ < x0_) {
+        res = 0.0;
+    }
+    return res;
+}
+
+double
+correction( double beta, double projm)
+{
+    double beta2 = beta * beta;
+    double gamma2 = 1. / (1. - beta2);
+    double gamma = sqrt(gamma2);
+
+    double tm = tmax( beta2, gamma, gamma2, projm);
+    double k = (2. * mc2e * beta2 * gamma2 * tm) / (Imean * Imean);
+//    double res = (0.5 * ::log(k) - beta2) / (beta2);
+    double x_ = xparam( beta, gamma);
+    double x1_ = x1();
+    double delta_ = delta( x_, x0, x1_, k);
+    double p = (tm * tm) / (gamma * projm * gamma * projm);
+    double res = (0.5 * ::log(k) - beta2 - delta_ / 2. + p / 8.) / (beta2);
+    return res;
+}
+
+const std::array< double, CHANNELS> channel_amp = { 1.0, 1.003715745, 0.955349248, 1.025628856 };
+
+//size_t accepted[6] = {};
+//size_t rejected[6] = {};
+
+//const double aa = 6.240625;
+//const double bb = -6.3625;
 
 } // namespace
 
@@ -185,6 +297,11 @@ namespace CalibrationFitting {
 SharedParameters Parameters::instance_;
 
 Parameters::Parameters(QSettings* settings)
+    :
+    k(0.5),
+    K(1.0),
+    reference_charge(1),
+    projectile_charge(CARBON_Z)
 {
     std::fill( charge_radius, charge_radius + CARBON_Z, 1.0);
     std::fill( charge_beta, charge_beta + CARBON_Z, 0.739);
@@ -247,10 +364,14 @@ Parameters::initiate(QSettings *set)
         charge_counts_signals.clear();
         set->beginGroup("ChargeSignalMap");
         for ( int i = 1; i <= CARBON_Z; ++i) {
+            const int& z = charge_counts_data[i - 1].z;
+            const double& m = charge_counts_data[i - 1].mean;
+            const double& s = charge_counts_data[i - 1].sigma;
+
             set->beginGroup(QString("charge%1").arg(i));
-            int key = set->value( "charge", 0).toInt();
-            double mu = set->value( "mu", 0.0).toDouble();
-            double sigma = set->value( "sigma", 0.0).toDouble();
+            int key = set->value( "charge", z).toInt();
+            double mu = set->value( "mu", m).toDouble();
+            double sigma = set->value( "sigma", s).toDouble();
             set->endGroup();
             charge_counts_signals.insert(std::make_pair( key, SignalPair( mu, sigma)));
         }
@@ -275,6 +396,7 @@ Parameters::initiate(QSettings *set)
     }
 
     // linear fit parameters
+/*
     int ch = 0, pos1 = -1, pos2 = -1;
     if (set) {
         set->beginGroup("LinearFit");
@@ -285,7 +407,7 @@ Parameters::initiate(QSettings *set)
         linear_fit[1] = set->value( "parameter-b", 0.0).toDouble();
         set->endGroup();
     }
-
+*/
     // charge-radius
     if (set) {
         set->beginGroup("ChargeRadius");
@@ -326,6 +448,7 @@ Parameters::initiate(QSettings *set)
         set->endGroup();
     }
 
+/*
     if (ch > 0 && pos1 != -1 && pos2 != -1) {
         recalculate( ch, pos1, pos2);
     }
@@ -337,11 +460,20 @@ Parameters::initiate(QSettings *set)
     }
     else
         recalculate( 4, 0, 3);
-
-    // tension and power
+*/
+    // tension
     tension_parameter = set->value( "tension-parameter", 0.0).toDouble();
+
+    // reference charge
+    reference_charge = set->value( "reference-charge", 1).toInt();
+    projectile_charge = set->value( "projectile-charge", CARBON_Z).toInt();
+
+
+    recalculate();
+    recalculate_charge_fit(projectile_charge);
 }
 
+/*
 void
 Parameters::recalculate(int ref_channel, int fit_pos_start, int fit_pos_stop)
 {
@@ -350,7 +482,7 @@ Parameters::recalculate(int ref_channel, int fit_pos_start, int fit_pos_stop)
     fit_points[1] = fit_pos_stop;
     recalculate();
 }
-
+*/
 void
 Parameters::restore_reference_signals()
 {
@@ -363,12 +495,15 @@ Parameters::restore_reference_signals()
         SignalPair ch2( data[i].channel2[0], data[i].channel2[1]);
         SignalPair ch3( data[i].channel3[0], data[i].channel3[1]);
         SignalPair ch4( data[i].channel4[0], data[i].channel4[1]);
-//        SignalArray array({ ch1, ch2, ch3, ch4 });
+#ifdef Q_OS_WIN
         SignalArray array;
         array[0] = ch1;
         array[1] = ch2;
         array[2] = ch3;
         array[3] = ch4;
+#elif defined(Q_OS_LINUX)
+        SignalArray array({ ch1, ch2, ch3, ch4 });
+#endif
         reference_counts_signals.insert(std::make_pair( data[i].x, array));
     }
 }
@@ -413,13 +548,16 @@ Parameters::recalculate()
     const SignalArray& ref_back = iter->second;
 
     size_t i = 0;
-//    for ( const auto& elem : reference_counts_signals) {
-//       x[i] = elem.first;
-//       const SignalArray& array = elem.second;
+#ifdef Q_OS_WIN
     for ( ReferenceSignalMap::const_iterator it = reference_counts_signals.begin();
           it != reference_counts_signals.end(); ++it) {
         x[i] = it->first;
         const SignalArray& array = it->second;
+#elif defined(Q_OS_LINUX)
+    for ( const auto& elem : reference_counts_signals) {
+        x[i] = elem.first;
+        const SignalArray& array = elem.second;
+#endif
         y1[i] = array[0].first - ref_back[0].first;
         y2[i] = array[1].first - ref_back[1].first;
         y3[i] = array[2].first - ref_back[2].first;
@@ -433,7 +571,7 @@ Parameters::recalculate()
     cspl( y2, x, p2, fitn, tension_parameter);
     cspl( y3, x, p3, fitn, tension_parameter);
     cspl( y4, x, p4, fitn, tension_parameter);
-
+/*
     double* ylin = y4;
     switch (reference_channel) {
     case 1:
@@ -457,6 +595,7 @@ Parameters::recalculate()
     double b = ylin[pos2] - a * x[pos2];
     linear_fit[0] = a;
     linear_fit[1] = b;
+*/
 }
 
 RunInfo
@@ -482,19 +621,32 @@ Parameters::fit( const CountsList& list, Diagrams& d, bool background_flag)
 
     const SignalArray& back = background_signals;
 
-    double& beta1 = charge_beta[CARBON_Z - 1];
-    double corr1 = correction(beta1);
-
     double* pp[CHANNELS] = { p1, p2, p3, p4 };
     double* yy[CHANNELS] = { y1, y2, y3, y4 };
 
-//    for ( const CountsArray& array : list) {
+    const SignalPair& ref_charge = charge_counts_signals[reference_charge];
+
+//    ChargeSignalMap::const_iterator iter = charge_counts_signals.begin();
+//    const SignalPair& mip_charge = iter->second;
+
+    double signal = ref_charge.first;
+    double beta = charge_beta[reference_charge - 1];
+    double kpower = 1 / k;
+
+#ifdef Q_OS_WIN
     for ( CountsList::const_iterator it = list.begin(); it != list.end(); ++it) {
         const CountsArray& array = *it;
-
+#elif defined(Q_OS_LINUX)
+    for ( const CountsArray& array : list) {
+#endif
         ChannelsArray values;
 
         std::copy( array.begin(), array.end(), values.begin());
+
+        d.channels[0]->Fill(array[0]);
+        d.channels[1]->Fill(array[1]);
+        d.channels[2]->Fill(array[2]);
+        d.channels[3]->Fill(array[3]);
 
         bool skip = false;
         if (!background_flag) {
@@ -507,36 +659,41 @@ Parameters::fit( const CountsList& list, Diagrams& d, bool background_flag)
             if (skip)
                 continue;
 
+            skip = false;
             for ( int i = 0; i < CHANNELS; ++i) {
-                values[i] = linear_fit[0] * splfit( values[i], yy[i], x, pp[i], fitn, tension_parameter);
-                values[i] *= channel_amp[i];
+                values[i] = channel_amp[i] * splfit( values[i], yy[i], x, pp[i], fitn, tension_parameter);
+                if (values[i] <= 0.)
+                    skip = true;
             }
+            if (skip)
+                continue;
         }
-        d.channels[0]->Fill(values[0]);
-        d.channels[1]->Fill(values[1]);
-        d.channels[2]->Fill(values[2]);
-        d.channels[3]->Fill(values[3]);
 
         // if it's not a background measurement and signals in channels
         // are higher than background then calculate the charge
         if (!background_flag) {
 
             ChannelsArray charge;
-            int z = counts_to_charge( values, charge, corr1);
+            int z = counts_to_charge( values, charge, signal, beta, kpower);
+
+            for ( int i = 0; i < CHANNELS; ++i) {
+                d.fit[i]->Fill(values[i]);
+                d.fitall->Fill(values[i]);
+            }
 
             ChannelsArray rank(values);
             std::sort( rank.begin(), rank.end());
+            double mean = std::accumulate( values.begin(), values.end(), 0.) / CHANNELS;
+            double median = (rank[1] + rank[2]) / 2.;
+
             for ( int i = 0; i < CHANNELS; ++i) {
-                d.fit->Fill(values[i]);
-                d.rank[i]->Fill(rank[CHANNELS - i - 1]);
-                if (values[i] > 0)
-                    d.sqrt_fit->Fill(sqrt(values[i]));
+                d.rank[i]->Fill(values[i]);
             }
 
-            if (z > 0) {
-                charge_events[z - 1]++; // increase a number of proccessed events for particular charge
-                events_processed++; // increase a number of all proccessed events
+            d.fit_median->Fill(median);
+            d.fit_mean->Fill(mean);
 
+            if (z > 0) {
                 d.z12->Fill( charge[0], charge[1]);
                 d.z23->Fill( charge[1], charge[2]);
                 d.z34->Fill( charge[2], charge[3]);
@@ -550,41 +707,18 @@ Parameters::fit( const CountsList& list, Diagrams& d, bool background_flag)
                 d.c14->Fill( values[0], values[3]);
                 d.c13->Fill( values[0], values[2]);
                 d.c24->Fill( values[1], values[3]);
-/*
-                d.z->Fill(charge[0]);
-                d.z->Fill(charge[1]);
-                d.z->Fill(charge[2]);
-                d.z->Fill(charge[3]);
-*/
-/*
-                ChannelsArray w;
-                std::transform( charge.begin(), charge.end(), w.begin(),
-                                [z](double c) -> double { double d = (c - z) * (c - z); return 1. / (d); });
-                double ww = std::accumulate( w.begin(), w.end(), 0.);
-                double wcharge = std::inner_product( w.begin(), w.end(), charge.begin(), 0.);
-                wcharge /= ww;
-                d.z->Fill(wcharge);
-*/
 
-//                ChannelsArray tmp = charge;
-//                std::for_each( tmp.begin(), tmp.end(),
-//                                [z](double ccharge) -> double { return fabs(ccharge - z); });
-//                std::copy( charge.begin(), charge.end(), tmp.begin());
-//                std::sort( tmp.begin(), tmp.end());
-//                d.z->Fill(tmp[1]); // rank 2
-                double charge_mean = std::accumulate( charge.begin(), charge.end(), 0.) / CHANNELS;
-                d.z->Fill(charge_mean);
-/*
-                int position_max = std::max_element( tmp.begin(), tmp.end()) - tmp.begin();
+                charge_events[z - 1]++; // increase a number of proccessed events for particular charge
+                events_processed++; // increase a number of all proccessed events
 
-                for ( int i = 0; i < CHANNELS; ++i) {
-                    if (i != position_max)
-                        d.z->Fill(charge[i]);
-                }
-*/
+                ChannelsArray tmp(charge);
+                std::sort( tmp.begin(), tmp.end());
+
+                double charge_rank2 = (tmp[1] + tmp[2]) / 2.;
+                d.z->Fill(charge_rank2); // rank 2
+                d.z2->Fill(charge_rank2 * charge_rank2);
             }
             else {
-
             }
         }
     }
@@ -601,25 +735,29 @@ Parameters::save(QSettings *set)
     set->setValue( "size", int(reference_counts_signals.size()));
 
     int row = 0;
-/*
-    for ( const auto& elem : reference_counts_signals) {
-        double key = elem.first;
-        set->beginGroup(QString("key%1").arg(row));
-        set->setValue( "key", key);
-        const SignalArray& array = elem.second;
-*/
+#ifdef Q_OS_WIN
     for ( ReferenceSignalMap::const_iterator it = reference_counts_signals.begin();
           it != reference_counts_signals.end(); ++it) {
         double key = it->first;
+#elif defined(Q_OS_LINUX)
+    for ( const auto& elem : reference_counts_signals) {
+        double key = elem.first;
+#endif
         set->beginGroup(QString("key%1").arg(row));
         set->setValue( "key", key);
+#ifdef Q_OS_WIN
         const SignalArray& array = it->second;
-
+#elif defined(Q_OS_LINUX)
+        const SignalArray& array = elem.second;
+#endif
         set->beginWriteArray("mu-sigma-values");
         int index = 0;
-//        for ( const SignalPair& p : array) {
+#ifdef Q_OS_WIN
         for ( SignalArray::const_iterator iter = array.begin(); iter != array.end(); ++iter) {
             const SignalPair& p = *iter;
+#elif defined(Q_OS_LINUX)
+        for ( const SignalPair& p : array) {
+#endif
             set->setArrayIndex(index);
             set->setValue( "mu", p.first);
             set->setValue( "sigma", p.second);
@@ -633,19 +771,21 @@ Parameters::save(QSettings *set)
 
     // particle charge to counts map
     set->beginGroup("ChargeSignalMap");
-/*
-    for ( const auto& elem : charge_counts_signals) {
-        int charge = elem.first;
-        set->beginGroup(QString("charge%1").arg(charge));
-        set->setValue( "charge", charge);
-        const SignalPair& p = elem.second;
-*/
+#ifdef Q_OS_WIN
     for ( ChargeSignalMap::const_iterator it = charge_counts_signals.begin();
           it != charge_counts_signals.end(); ++it) {
         int charge = it->first;
+#elif defined(Q_OS_LINUX)
+    for ( const auto& elem : charge_counts_signals) {
+        int charge = elem.first;
+#endif
         set->beginGroup(QString("charge%1").arg(charge));
         set->setValue( "charge", charge);
+#ifdef Q_OS_WIN
         const SignalPair& p = it->second;
+#elif defined(Q_OS_LINUX)
+        const SignalPair& p = elem.second;
+#endif
         set->setValue( "mu", p.first);
         set->setValue( "sigma", p.second);
         set->endGroup();
@@ -656,10 +796,13 @@ Parameters::save(QSettings *set)
     set->beginGroup("Background");
     set->beginWriteArray("mu-sigma-values");
     int index = 0;
-//    for ( const SignalPair& p : background_signals) {
+#ifdef Q_OS_WIN
     for ( SignalArray::const_iterator it = background_signals.begin();
           it != background_signals.end(); ++it) {
         const SignalPair& p = *it;
+#elif defined(Q_OS_LINUX)
+    for ( const SignalPair& p : background_signals) {
+#endif
         set->setArrayIndex(index);
         set->setValue( "mu", p.first);
         set->setValue( "sigma", p.second);
@@ -698,7 +841,7 @@ Parameters::save(QSettings *set)
     }
     set->endArray();
     set->endGroup();
-
+/*
     // linear fit parameters
     set->beginGroup("LinearFit");
     set->setValue( "reference-channel", reference_channel);
@@ -707,25 +850,51 @@ Parameters::save(QSettings *set)
     set->setValue( "parameter-a", linear_fit[0]);
     set->setValue( "parameter-b", linear_fit[1]);
     set->endGroup();
-
+*/
     // tension and power
+    set->setValue( "reference-charge", reference_charge);
+    set->setValue( "projectile-charge", projectile_charge);
     set->setValue( "tension-parameter", tension_parameter);
 }
 
-int
-Parameters::counts_to_charge( const ChannelsArray& values, ChannelsArray& charges, double mip_corr) const
+void
+Parameters::recalculate_charge_fit(int charge)
 {
-    ChargeSignalMap::const_iterator iter = charge_counts_signals.begin();
-    const SignalPair& charge1 = iter->second;
-//    const SignalArray& ref_back = reference_counts_signals[0.0];
-//    SignalArray& back = background_signals;
+    const SignalPair& mip = charge_counts_signals[1];
+    const SignalPair& charge_signal = charge_counts_signals[charge];
+    double projm_mip = 0.13957018;//projmass[0];
+    double projm_charge = projmass[charge - 1];
+    double beta_mip = charge_beta[0];
+    double beta_charge = charge_beta[charge - 1];
 
+    K = correction( beta_charge, projm_charge) / correction( beta_mip, projm_mip);
+#ifdef Q_OS_WIN
+    k = log(double(charge_signal.first / (mip.first * beta_mip * beta_mip * K))) / log(double(charge));
+#elif defined(Q_OS_LINUX)
+    k = log(charge_signal.first / (mip.first * beta_mip * beta_mip * K)) / log(charge);
+#endif
+
+//    qDebug() << "K: " << K << " k: " << k;
+}
+
+int
+Parameters::counts_to_charge( const ChannelsArray& values, ChannelsArray& charges,
+    double signal, double beta, double power) const
+{
     int charge_detect = 0;
 
+//    double beta_charge = charge_beta[5];
+
     for ( int i = 0; i < CHANNELS; ++i) {
+//        double vv = (values[i] - bb) / aa;
+//        if (vv > 0.0) {
         if (values[i] > 0.) {
+//            charges[i] = sqrt((values[i] - bb) / aa);
+            charges[i] = pow( values[i] / (signal * beta * beta * K), power);
+//            charges[i] = sqrt((values[i] * beta_charge * beta_charge) / (signal * beta * beta * K));
+//            charges[i] = 1.1771428 * sqrt((values[i] * beta_charge * beta_charge) / (signal * beta * beta * K));
 //            charges[i] = pow( values[i] / (charge1.first * 0.5637), 1.0 / 2.33745);
-            charges[i] = sqrt(values[i] / charge1.first);
+//            charges[i] = sqrt(values[i] / signal);
             charge_detect++;
         }
         else
@@ -734,15 +903,6 @@ Parameters::counts_to_charge( const ChannelsArray& values, ChannelsArray& charge
 
     int res = (charge_detect >= CHANNELS - 1) ? majority_scheme(charges) : -1;
 
-    if (res > 0) {
-        double beta = charge_beta[res - 1];
-        double corr = correction(beta);
-        double k = sqrt(mip_corr / corr);
-        std::for_each( charges.begin(), charges.end(), [k](double& ccharge){ ccharge *= k; });
-
-        res = majority_scheme(charges);
-    }
-
     return res;
 }
 
@@ -750,30 +910,83 @@ int
 Parameters::majority_scheme(const ChannelsArray& z/*, double radius */) const
 {
     int pos_z = -1;
+/*
+    for ( int i = 1; i <= CARBON_Z; ++i) {
+        double rms = 0.;
+        for ( int j = 0; j < CHANNELS; ++j) {
+            rms += (z[j] - double(i)) * (z[j] - double(i));
+        }
+        rms /= CHANNELS;
+        rms = sqrt(rms);
+        if (fabs(rms) < 0.2) {
+            pos_z = i;
+            break;
+        }
+        else {
+            ChannelsArray tmp = z;
+            int position_max = std::max_element( tmp.begin(), tmp.end()) - tmp.begin();
+
+            rms = 0.;
+            for ( int j = 0; j < CHANNELS; ++j) {
+                if (j != position_max)
+                    rms += (z[j] - double(i)) * (z[j] - double(i));
+            }
+            rms /= CHANNELS - 1;
+            rms = sqrt(rms);
+
+            if (fabs(rms) < 0.2) {
+                pos_z = i;
+                break;
+            }
+        }
+    }
+*/
     for ( int i = 1; i <= CARBON_Z; ++i) {
         double r = 0.0;
         ChannelsArray delta;
-        bool big = true;
+//        bool big = true;
         for ( int j = 0; j < CHANNELS; ++j) {
             double diff = z[j] - double(i);
             delta[j] = diff;
             r += diff * diff;
-            if (delta[j] < 0.)
-                big = false;
+//            if (delta[j] < 0.)
+//                big = false;
         }
 
-        bool border = fabs(delta[0]) + fabs(delta[CHANNELS - 1]) <= 1.0;
+//        bool border = fabs(delta[0]) + fabs(delta[CHANNELS - 1]) <= 1.0;
+/*
+        bool b1_4 = fabs(delta[0]) <= 0.5 && fabs(delta[1]) <= 0.5 && fabs(delta[2]) <= 0.5 && fabs(delta[3]) <= 0.5;
+        bool b12 = fabs(delta[0]) <= 0.5 && fabs(delta[1]) <= 0.5;
+        bool b23 = fabs(delta[1]) <= 0.5 && fabs(delta[2]) <= 0.5;
+        bool b34 = fabs(delta[2]) <= 0.5 && fabs(delta[3]) <= 0.5;
+        bool b1_3 = fabs(delta[0]) <= 0.5 && fabs(delta[1]) <= 0.5 && fabs(delta[2]) <= 0.5;
+        bool b2_4 = fabs(delta[1]) <= 0.5 && fabs(delta[2]) <= 0.5 && fabs(delta[3]) <= 0.5;
 
-        r = sqrt(r / (CHANNELS - 1));
+        if (i == 6 && b1_4)
+            accepted[0]++;
+        else
+            rejected[0]++;
 
-        if (border && r <= charge_radius[i - 1]) {
+        if (i == 6 && (b12 || b23 || b34) && !b1_4 && !b1_3 && !b2_4)
+            accepted[1]++;
+        else
+            rejected[1]++;
+
+        if (i == 6 && (b1_3 || b2_4) && !b1_4)
+            accepted[2]++;
+        else
+            rejected[2]++;
+*/
+        r = sqrt(r / double(CHANNELS));
+
+        if (/*border && */r <= charge_radius[i - 1]) {
             pos_z = i;
             break;
         }
-        else if (i == CARBON_Z && big) {
-            pos_z = i;
-            break;
-        }
+//        else if (i == CARBON_Z && big) {
+//            pos_z = i;
+//            break;
+//        }
     }
 
     return pos_z;
