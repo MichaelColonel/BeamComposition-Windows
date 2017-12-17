@@ -19,8 +19,9 @@
 
 #pragma once
 
-#include <tr1/memory>
-#include <qglobal.h>
+#include <QtGlobal>
+
+#include <memory>
 
 #ifdef Q_OS_WIN
 namespace boost {
@@ -58,7 +59,7 @@ class QSettings;
 namespace CalibrationFitting {
 
 class Parameters;
-typedef std::tr1::shared_ptr<Parameters> SharedParameters;
+typedef std::shared_ptr<Parameters> SharedParameters;
 
 class Parameters : private boost::noncopyable {
 

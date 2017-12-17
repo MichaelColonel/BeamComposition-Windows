@@ -79,7 +79,7 @@ BeamCompositionFit::fit_parameters() const
     size_t npeaks = params.size();
     double* par = new double[npeaks * gparams];
     int i = 0;
-#ifdef Q_OS_WIN
+#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
     for ( ChargeGausParametersMap::const_iterator it = params.begin(); it != params.end(); ++it) {
         const GausParameters& values = it->second;
         for ( GausParameters::const_iterator iter = values.begin(); iter != values.end(); ++iter) {
@@ -100,7 +100,7 @@ BeamCompositionFit::fit_errors() const
     size_t npeaks = errors.size();
     double* par = new double[npeaks * gparams];
     int i = 0;
-#ifdef Q_OS_WIN
+#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
     for ( ChargeGausParametersMap::const_iterator it = params.begin(); it != params.end(); ++it) {
         const GausParameters& values = it->second;
         for ( GausParameters::const_iterator iter = values.begin(); iter != values.end(); ++iter) {
@@ -133,7 +133,7 @@ GausParametersPair
 BeamCompositionFit::fit_gaus( TH1* hist, double z, double dz) const
 {
     TF1 *fun = new TF1( "fun", "gaus", z - dz, z + dz);
-#ifdef Q_OS_WIN
+#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
     GausParameters gpar;
     gpar[0] = 100.;
     gpar[1] = z;

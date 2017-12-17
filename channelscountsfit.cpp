@@ -495,7 +495,7 @@ Parameters::restore_reference_signals()
         SignalPair ch2( data[i].channel2[0], data[i].channel2[1]);
         SignalPair ch3( data[i].channel3[0], data[i].channel3[1]);
         SignalPair ch4( data[i].channel4[0], data[i].channel4[1]);
-#ifdef Q_OS_WIN
+#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
         SignalArray array;
         array[0] = ch1;
         array[1] = ch2;
@@ -548,7 +548,7 @@ Parameters::recalculate()
     const SignalArray& ref_back = iter->second;
 
     size_t i = 0;
-#ifdef Q_OS_WIN
+#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
     for ( ReferenceSignalMap::const_iterator it = reference_counts_signals.begin();
           it != reference_counts_signals.end(); ++it) {
         x[i] = it->first;
@@ -633,7 +633,7 @@ Parameters::fit( const CountsList& list, Diagrams& d, bool background_flag)
     double beta = charge_beta[reference_charge - 1];
     double kpower = 1 / k;
 
-#ifdef Q_OS_WIN
+#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
     for ( CountsList::const_iterator it = list.begin(); it != list.end(); ++it) {
         const CountsArray& array = *it;
 #elif defined(Q_OS_LINUX)
@@ -735,7 +735,7 @@ Parameters::save(QSettings *set)
     set->setValue( "size", int(reference_counts_signals.size()));
 
     int row = 0;
-#ifdef Q_OS_WIN
+#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
     for ( ReferenceSignalMap::const_iterator it = reference_counts_signals.begin();
           it != reference_counts_signals.end(); ++it) {
         double key = it->first;
@@ -745,14 +745,14 @@ Parameters::save(QSettings *set)
 #endif
         set->beginGroup(QString("key%1").arg(row));
         set->setValue( "key", key);
-#ifdef Q_OS_WIN
+#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
         const SignalArray& array = it->second;
 #elif defined(Q_OS_LINUX)
         const SignalArray& array = elem.second;
 #endif
         set->beginWriteArray("mu-sigma-values");
         int index = 0;
-#ifdef Q_OS_WIN
+#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
         for ( SignalArray::const_iterator iter = array.begin(); iter != array.end(); ++iter) {
             const SignalPair& p = *iter;
 #elif defined(Q_OS_LINUX)
@@ -771,7 +771,7 @@ Parameters::save(QSettings *set)
 
     // particle charge to counts map
     set->beginGroup("ChargeSignalMap");
-#ifdef Q_OS_WIN
+#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
     for ( ChargeSignalMap::const_iterator it = charge_counts_signals.begin();
           it != charge_counts_signals.end(); ++it) {
         int charge = it->first;
@@ -781,7 +781,7 @@ Parameters::save(QSettings *set)
 #endif
         set->beginGroup(QString("charge%1").arg(charge));
         set->setValue( "charge", charge);
-#ifdef Q_OS_WIN
+#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
         const SignalPair& p = it->second;
 #elif defined(Q_OS_LINUX)
         const SignalPair& p = elem.second;
@@ -796,7 +796,7 @@ Parameters::save(QSettings *set)
     set->beginGroup("Background");
     set->beginWriteArray("mu-sigma-values");
     int index = 0;
-#ifdef Q_OS_WIN
+#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
     for ( SignalArray::const_iterator it = background_signals.begin();
           it != background_signals.end(); ++it) {
         const SignalPair& p = *it;
@@ -868,8 +868,8 @@ Parameters::recalculate_charge_fit(int charge)
     double beta_charge = charge_beta[charge - 1];
 
     K = correction( beta_charge, projm_charge) / correction( beta_mip, projm_mip);
-#ifdef Q_OS_WIN
-    k = log(double(charge_signal.first / (mip.first * beta_mip * beta_mip * K))) / log(double(charge));
+#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
+    k = log(charge_signal.first / (mip.first * beta_mip * beta_mip * K)) / log(double(charge));
 #elif defined(Q_OS_LINUX)
     k = log(charge_signal.first / (mip.first * beta_mip * beta_mip * K)) / log(charge);
 #endif

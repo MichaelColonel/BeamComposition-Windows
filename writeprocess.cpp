@@ -37,7 +37,7 @@ WriteDataProcess::run()
 {
     if (filerun && filerun->isOpen()) {
         QDataStream out(filerun);
-#ifdef Q_OS_WIN
+#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
         for ( DataList::const_iterator it = data.begin(); it != data.end(); ++it) {
             const quint8& value = *it;
 #elif defined(Q_OS_LINUX)
@@ -91,7 +91,7 @@ WriteDataTimeProcess::run()
         out.setByteOrder(QDataStream::LittleEndian);
         out << quint64(datetime);
         out << quint32(data.size());
-#ifdef Q_OS_WIN
+#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
         for ( DataList::const_iterator it = data.begin(); it != data.end(); ++it) {
             const quint8& value = *it;
 #elif defined(Q_OS_LINUX)

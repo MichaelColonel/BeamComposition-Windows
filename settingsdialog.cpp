@@ -90,7 +90,7 @@ SettingsDialog::SettingsDialog(QWidget* parent)
 
     ui->signalCountsTableWidget->setRowCount(elems);
     int pos = 0;
-#ifdef Q_OS_WIN
+#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
     for ( ReferenceSignalMap::const_iterator it = ref_signals.begin(); it != ref_signals.end(); ++it) {
         int value = it->first;
 #elif defined(Q_OS_LINUX)
@@ -102,7 +102,7 @@ SettingsDialog::SettingsDialog(QWidget* parent)
         QTableWidgetItem* item1 = new QTableWidgetItem(tr("%1").arg(value));
         ui->signalCountsTableWidget->setItem( pos, column++, item1);
 
-#ifdef Q_OS_WIN
+#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
         for ( SignalArray::const_iterator iter = it->second.begin(); iter != it->second.end(); ++iter) {
             QString str = SignalValueDelegate::form_text(*iter);
 #elif defined(Q_OS_LINUX)
@@ -365,7 +365,7 @@ SettingsDialog::restoreReferenceMatrixClicked()
 
         ui->signalCountsTableWidget->setRowCount(elems);
         int pos = 0;
-#ifdef Q_OS_WIN
+#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
         for ( ReferenceSignalMap::const_iterator it = ref_signals.begin(); it != ref_signals.end(); ++it) {
             int value = it->first;
 #elif defined(Q_OS_LINUX)
@@ -376,7 +376,7 @@ SettingsDialog::restoreReferenceMatrixClicked()
             QTableWidgetItem* item1 = new QTableWidgetItem(QString("%1").arg(value));
             ui->signalCountsTableWidget->setItem( pos, column++, item1);
 
-#ifdef Q_OS_WIN
+#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
             for ( SignalArray::const_iterator iter = it->second.begin(); iter != it->second.end(); ++iter) {
                 QString str = SignalValueDelegate::form_text(*iter);
 #elif defined(Q_OS_LINUX)
@@ -720,10 +720,10 @@ SettingsDialog::showGraphClicked()
     mg->GetHistogram()->SetMaximum(4095.0);   // along
     mg->GetHistogram()->SetMinimum(0.0);  //   Y
 
-    mg->GetXaxis()->SetTitleOffset(1.2);
-    mg->GetXaxis()->SetTitleSize(0.03);
-    mg->GetXaxis()->SetLabelSize(0.03);
-    mg->GetYaxis()->SetTitleOffset(1.3);
+    mg->GetXaxis()->SetTitleOffset(1.2f);
+    mg->GetXaxis()->SetTitleSize(0.03f);
+    mg->GetXaxis()->SetLabelSize(0.03f);
+    mg->GetYaxis()->SetTitleOffset(1.3f);
     mg->GetXaxis()->SetTitle("Reference signal (mV)");
     mg->GetYaxis()->SetTitle("Amplitude (ADC count)");
 

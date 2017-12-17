@@ -39,12 +39,10 @@
 
 #include <typeinfo>
 
-/*
-#ifdef Q_OS_WIN32 // for MinGW
+#if defined(Q_OS_WIN32) && defined(__MINGW32__)
 #include <windef.h>
 #include <winbase.h>
 #endif
-*/
 
 #include <ftd2xx.h>
 
@@ -676,7 +674,7 @@ MainWindow::createRootHistograms()
         ++i;
     }
 
-#ifdef Q_OS_WIN
+#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
     for ( QList<QTreeWidgetItem*>::iterator it = items.begin(); it != items.end(); ++it) {
         QTreeWidgetItem* item = *it;
 #elif defined(Q_OS_LINUX)
@@ -1821,7 +1819,7 @@ MainWindow::updateRunInfo()
     QTableWidgetItem* counted = ui->runInfoTableWidget->item( 13, 0);
     QTableWidgetItem* processed = ui->runInfoTableWidget->item( 14, 0);
     if (runinfo.counted()) {
-#ifdef Q_OS_WIN
+#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
         double percent = floor(1000. * runinfo.processed() / runinfo.counted()) / 10.;
 #elif defined(Q_OS_LINUX)
         double percent = round(1000. * runinfo.processed() / runinfo.counted()) / 10.;
@@ -1865,7 +1863,7 @@ MainWindow::fitChargeDiagram(DiagramType)
 
     TLegend* legend = new TLegend( 0.75, 0.15, 0.99, 0.55);
     legend->SetTextFont(70);
-    legend->SetTextSize(0.03);
+    legend->SetTextSize(0.03f);
     legend->AddEntry( charge, "Data", "lpe");
     legend->AddEntry( fit, TString::Format( "Total fit : %2.1f %%", datapercent));
 

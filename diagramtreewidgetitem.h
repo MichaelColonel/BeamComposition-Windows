@@ -34,7 +34,7 @@ public:
 #endif
         root_canvas_dialog(nullptr)
     {
-#ifdef Q_OS_WIN
+#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
         TH1* h1 = nullptr;
         TH2* h2 = nullptr;
         root_diagram_tuple = std::make_tuple( h1, h2);
