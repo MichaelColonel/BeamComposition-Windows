@@ -19,11 +19,12 @@
 
 #pragma once
 
-#include <QtGlobal>
-
 #include <memory>
 
-#ifdef Q_OS_WIN
+#include "runinfo.h"
+#include "typedefs.h"
+
+#if defined(Q_OS_WIN) && !defined(BOOST_CORE_NONCOPYABLE_HPP)
 namespace boost {
 
 //  Private copy constructor and copy assignment ensure classes derived from
@@ -48,11 +49,8 @@ typedef noncopyable_::noncopyable noncopyable;
 
 } // namespace boost
 #elif defined(Q_OS_LINUX)
-#include <boost/noncopyable.hpp>
+#include <boost/core/noncopyable.hpp>
 #endif
-
-#include "runinfo.h"
-#include "typedefs.h"
 
 class QSettings;
 

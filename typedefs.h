@@ -111,7 +111,7 @@ struct Diagrams {
         z14(nullptr),
         z24(nullptr)
     {
-#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
+#if defined(_MSC_VER) && (_MSC_VER < 1900) && defined(Q_OS_WIN)
         for ( int i = 0; i < CHANNELS; ++i) {
             channels[i] = nullptr;
             rank[i] = nullptr;
@@ -144,7 +144,7 @@ struct Diagrams {
         z14(src.z14),
         z24(src.z24)
     {
-#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
+#if defined(_MSC_VER) && (_MSC_VER < 1900) && defined(Q_OS_WIN)
         for ( int i = 0; i < CHANNELS; ++i) {
             this->channels[i] = src.channels[i];
             this->rank[i] = src.rank[i];
@@ -158,7 +158,7 @@ struct Diagrams {
     }
 
     Diagrams& operator=(const Diagrams& src) {
-#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
+#if defined(_MSC_VER) && (_MSC_VER < 1900) && defined(Q_OS_WIN)
         for ( int i = 0; i < CHANNELS; ++i) {
             this->channels[i] = src.channels[i];
             this->rank[i] = src.rank[i];

@@ -674,7 +674,7 @@ MainWindow::createRootHistograms()
         ++i;
     }
 
-#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
+#if defined(_MSC_VER) && (_MSC_VER < 1900) && defined(Q_OS_WIN)
     for ( QList<QTreeWidgetItem*>::iterator it = items.begin(); it != items.end(); ++it) {
         QTreeWidgetItem* item = *it;
 #elif defined(Q_OS_LINUX)
@@ -1819,7 +1819,7 @@ MainWindow::updateRunInfo()
     QTableWidgetItem* counted = ui->runInfoTableWidget->item( 13, 0);
     QTableWidgetItem* processed = ui->runInfoTableWidget->item( 14, 0);
     if (runinfo.counted()) {
-#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
+#if defined(_MSC_VER) && (_MSC_VER < 1900) && defined(Q_OS_WIN)
         double percent = floor(1000. * runinfo.processed() / runinfo.counted()) / 10.;
 #elif defined(Q_OS_LINUX)
         double percent = round(1000. * runinfo.processed() / runinfo.counted()) / 10.;

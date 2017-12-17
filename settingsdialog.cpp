@@ -90,7 +90,7 @@ SettingsDialog::SettingsDialog(QWidget* parent)
 
     ui->signalCountsTableWidget->setRowCount(elems);
     int pos = 0;
-#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
+#if defined(_MSC_VER) && (_MSC_VER < 1900) && defined(Q_OS_WIN)
     for ( ReferenceSignalMap::const_iterator it = ref_signals.begin(); it != ref_signals.end(); ++it) {
         int value = it->first;
 #elif defined(Q_OS_LINUX)
@@ -102,7 +102,7 @@ SettingsDialog::SettingsDialog(QWidget* parent)
         QTableWidgetItem* item1 = new QTableWidgetItem(tr("%1").arg(value));
         ui->signalCountsTableWidget->setItem( pos, column++, item1);
 
-#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
+#if defined(_MSC_VER) && (_MSC_VER < 1900) && defined(Q_OS_WIN)
         for ( SignalArray::const_iterator iter = it->second.begin(); iter != it->second.end(); ++iter) {
             QString str = SignalValueDelegate::form_text(*iter);
 #elif defined(Q_OS_LINUX)
@@ -365,7 +365,7 @@ SettingsDialog::restoreReferenceMatrixClicked()
 
         ui->signalCountsTableWidget->setRowCount(elems);
         int pos = 0;
-#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
+#if defined(_MSC_VER) && (_MSC_VER < 1900) && defined(Q_OS_WIN)
         for ( ReferenceSignalMap::const_iterator it = ref_signals.begin(); it != ref_signals.end(); ++it) {
             int value = it->first;
 #elif defined(Q_OS_LINUX)
@@ -376,7 +376,7 @@ SettingsDialog::restoreReferenceMatrixClicked()
             QTableWidgetItem* item1 = new QTableWidgetItem(QString("%1").arg(value));
             ui->signalCountsTableWidget->setItem( pos, column++, item1);
 
-#if (_MSC_VER < 1900) && defined(Q_OS_WIN)
+#if defined(_MSC_VER) && (_MSC_VER < 1900) && defined(Q_OS_WIN)
             for ( SignalArray::const_iterator iter = it->second.begin(); iter != it->second.end(); ++iter) {
                 QString str = SignalValueDelegate::form_text(*iter);
 #elif defined(Q_OS_LINUX)
