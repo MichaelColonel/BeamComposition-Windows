@@ -31,6 +31,7 @@
 #include "rundetailslistwidgetitem.h"
 #include "acquisitionthread.h"
 
+#define MASK_SIZE 8
 #define MASK_BITS 0x03 // mask
 #define BUFFER_SIZE 0x100000 // 1 Megabyte
 
@@ -51,15 +52,14 @@ check_mask( unsigned char value, unsigned char mask)
     return !((value & MASK_BITS) ^ mask);
 }
 
-#if defined(_MSC_VER) && (_MSC_VER < 1900) && defined(Q_OS_WIN)
-#define MASK_SIZE 8
+#if defined(_MSC_VER_) && (MSC_VER_ < 1900)
 // mask buffer of the batch (high byte, low byte)
-const unsigned char mask_vector[MASK_SIZE] = {
+const unsigned char mask_array[MASK_SIZE] = {
     0x00, 0x00, 0x01, 0x01, 0x02, 0x02, 0x03, 0x03
 };
-#elif defined(Q_OS_LINUX)
-// mask buffer of the batch (high byte, low byte)
-const DataVector mask_vector{ // first two low bits
+const DataVector mask_vector( mask_array, mask_array + MASK_SIZE);
+#elif defined(__GNUG__) && (__cplusplus >= 201103L)
+const std::array< unsigned char, MASK_SIZE > mask_vector{
     0x00, 0x00, 0x01, 0x01, 0x02, 0x02, 0x03, 0x03
 };
 #endif
@@ -109,20 +109,12 @@ AcquireThread::run()
             if (stopped)
                 break;
         }
-#if defined(_MSC_VER) && (_MSC_VER < 1900) && defined(Q_OS_WIN)
-        if (FT_SUCCESS(status) && rx_bytes > MASK_SIZE) {
-#elif defined(Q_OS_LINUX)
         if (FT_SUCCESS(status) && rx_bytes > mask_vector.size()) {
-#endif
 
             toread = (rx_bytes > BUFFER_SIZE) ? BUFFER_SIZE : rx_bytes;
 
             status = FT_Read( device, buffer, toread, &nread);
-#if defined(_MSC_VER) && (_MSC_VER < 1900) && defined(Q_OS_WIN)
-            if (FT_SUCCESS(status) && nread > MASK_SIZE) {
-#elif defined(Q_OS_LINUX)
             if (FT_SUCCESS(status) && nread > mask_vector.size()) {
-#endif
                 // put available data in the queue
                 // acquire condition signal for processing thread
                 DataVector localdata( buffer, buffer + nread);
@@ -197,10 +189,10 @@ ProcessThread::run()
 
             localdata = std::move(queue.front());
             queue.pop();
-#if defined(_MSC_VER) && (_MSC_VER < 1900) && defined(Q_OS_WIN)
+#if defined(_MSC_VER) && (_MSC_VER < 1900)
             for ( DataVector::const_iterator it = localdata.begin(); it != localdata.end(); ++it)
                  bufferdata.push_back(*it);
-#elif defined(Q_OS_LINUX)
+#elif defined(__GNUG__) && (__cplusplus >= 201103L)
             for ( unsigned char v : localdata)
                  bufferdata.push_back(v);
 #endif
@@ -212,10 +204,10 @@ ProcessThread::run()
         size_t res = process_data( localcounts, localdata, proc);
         if (res) {
             QMutexLocker locker(mutex);
-#if defined(_MSC_VER) && (_MSC_VER < 1900) && defined(Q_OS_WIN)
+#if defined(_MSC_VER) && (_MSC_VER < 1900)
             for ( CountsList::const_iterator it = localcounts.begin(); it != localcounts.end(); ++it)
                 counts.push_back(*it);
-#elif defined(Q_OS_LINUX)
+#elif defined(__GNUG__) && (__cplusplus >= 201103L)
             for ( const CountsArray& event_counts: localcounts)
                 counts.push_back(event_counts);
 #endif
@@ -227,10 +219,10 @@ ProcessThread::run()
 
     // final background data (if it was any data obtained)
     if (n && flag_background) {
-#if defined(_MSC_VER) && (_MSC_VER < 1900) && defined(Q_OS_WIN)
+#if defined(_MSC_VER) && (_MSC_VER < 1900)
         for ( SignalArray::iterator it = back.begin(); it != back.end(); ++it) {
             SignalPair& p = *it;
-#elif defined(Q_OS_LINUX)
+#elif defined(__GNUG__) && (__cplusplus >= 201103L)
         for ( auto& p : back) {
 #endif
             p.second = sqrt(p.second);
@@ -261,26 +253,15 @@ ProcessThread::process_data( CountsList& list, DataVector& data, size_t& proc) c
 */
     auto it = data.begin(); // DataVector::iterator
     while (it != data.end()) {
-#if defined(_MSC_VER) && (_MSC_VER < 1900) && defined(Q_OS_WIN)
-        it = std::search( it, data.end(), mask_vector, mask_vector + MASK_SIZE, check_mask);
-#elif defined(Q_OS_LINUX)
         it = std::search( it, data.end(), mask_vector.begin(), mask_vector.end(), check_mask);
-#endif
+
         if (it != data.end()) {
-#if defined(_MSC_VER) && (_MSC_VER < 1900) && defined(Q_OS_WIN)
-            DataVector batch( it, it + MASK_SIZE);
-#elif defined(Q_OS_LINUX)
             DataVector batch( it, it + mask_vector.size());
-#endif
 
             batch_to_counts( list, batch);
-#if defined(_MSC_VER) && (_MSC_VER < 1900) && defined(Q_OS_WIN)
-            it += MASK_SIZE;
-            proc += MASK_SIZE;
-#elif defined(Q_OS_LINUX)
+
             it += mask_vector.size();
             proc += mask_vector.size();
-#endif
             res = it - data.begin();
         }
     }
@@ -291,10 +272,10 @@ ProcessThread::process_data( CountsList& list, DataVector& data, size_t& proc) c
 void
 ProcessThread::fill_background( SignalArray& back, const CountsList& lcounts, size_t& n)
 {
-#if defined(_MSC_VER) && (_MSC_VER < 1900) && defined(Q_OS_WIN)
+#if defined(_MSC_VER) && (_MSC_VER < 1900)
     for ( CountsList::const_iterator it = lcounts.begin(); it != lcounts.end(); ++it) {
         const CountsArray& ch = *it;
-#elif defined(Q_OS_LINUX)
+#elif defined(__GNUG__) && (__cplusplus >= 201103L)
     for ( const CountsArray& ch : lcounts) {
 #endif
         n++;
@@ -347,11 +328,13 @@ ProcessFileThread::run()
 void
 ProcessFileThread::processFileBatches()
 {
-#if QT_VERSION >= 0x050000
+#if QT_VERSION >= 0x040000
     std::string std_filename = filename.toStdString();
     std::ifstream file( std_filename.c_str(), std::ifstream::binary);
 #else
-    std::ifstream file( filename.toAscii(), std::ifstream::binary);
+    std::string std_filename = filename.toStdString();
+    std::ifstream file( std_filename.c_str(), std::ifstream::binary);
+//    std::ifstream file( filename.toAscii(), std::ifstream::binary);
 #endif
     runinfo.clear();
 
@@ -367,10 +350,10 @@ ProcessFileThread::processFileBatches()
         // buffer data
         char* buf = reinterpret_cast<char*>(buffer);
         int items_proc = 0;
-#if defined(_MSC_VER) && (_MSC_VER < 1900) && defined(Q_OS_WIN)
+#if defined(_MSC_VER) && (_MSC_VER < 1900)
         for ( QList<QListWidgetItem*>::iterator it = batches.begin(); it != batches.end(); ++it) {
             QListWidgetItem* item = *it;
-#elif defined(Q_OS_LINUX)
+#elif defined(__GNUG__) && (__cplusplus >= 201103L)
         for ( QListWidgetItem* item : batches) {
 #endif
             if (file.eof())
@@ -413,10 +396,10 @@ ProcessFileThread::processFileBatches()
 
         // final background data
         if (n && flag_background) {
-#if defined(_MSC_VER) && (_MSC_VER < 1900) && defined(Q_OS_WIN)
+#if defined(_MSC_VER) && (_MSC_VER < 1900)
             for ( SignalArray::iterator it = back.begin(); it != back.end(); ++it) {
                 SignalPair& p = *it;
-#elif defined(Q_OS_LINUX)
+#elif defined(__GNUG__) && (__cplusplus >= 201103L)
             for ( auto& p : back) {
 #endif
                 p.second = sqrt(p.second);
@@ -433,11 +416,13 @@ ProcessFileThread::processFileBatches()
 void
 ProcessFileThread::processFileData()
 {
-#if QT_VERSION >= 0x050000
+#if QT_VERSION >= 0x040000
     std::string std_filename = filename.toStdString();
     std::ifstream file( std_filename.c_str(), std::ifstream::binary);
 #else
-    std::ifstream file( filename.toAscii(), std::ifstream::binary);
+    std::string std_filename = filename.toStdString();
+    std::ifstream file( std_filename.c_str(), std::ifstream::binary);
+//    std::ifstream file( filename.toAscii(), std::ifstream::binary);
 #endif
     runinfo.clear();
 
@@ -491,10 +476,10 @@ ProcessFileThread::processFileData()
 
         // final background data
         if (n && flag_background) {
-#if defined(_MSC_VER) && (_MSC_VER < 1900) && defined(Q_OS_WIN)
+#if defined(_MSC_VER) && (_MSC_VER < 1900)
             for ( SignalArray::iterator it = back.begin(); it != back.end(); ++it) {
                 SignalPair& p = *it;
-#elif defined(Q_OS_LINUX)
+#elif defined(__GNUG__) && (__cplusplus >= 201103L)
             for ( auto& p : back) {
 #endif
                 p.second = sqrt(p.second);
