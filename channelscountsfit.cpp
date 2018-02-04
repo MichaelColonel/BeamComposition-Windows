@@ -664,6 +664,7 @@ Parameters::fit( const CountsList& list, Diagrams& d, bool background_flag)
             skip = false;
             for ( int i = 0; i < CHANNELS; ++i) {
                 values[i] = channel_amp[i] * splfit( values[i], yy[i], x, pp[i], fitn, tension_parameter);
+//                values[i] = splfit( values[i], yy[i], x, pp[i], fitn, tension_parameter);
                 if (values[i] <= 0.)
                     skip = true;
             }
@@ -696,6 +697,7 @@ Parameters::fit( const CountsList& list, Diagrams& d, bool background_flag)
             d.fit_mean->Fill(mean);
 
             if (z > 0) {
+
                 d.z12->Fill( charge[0], charge[1]);
                 d.z23->Fill( charge[1], charge[2]);
                 d.z34->Fill( charge[2], charge[3]);
@@ -903,7 +905,7 @@ Parameters::counts_to_charge( const ChannelsArray& values, ChannelsArray& charge
             charges[i] = -1.0;
     }
 
-    int res = (charge_detect >= CHANNELS - 1) ? majority_scheme(charges) : -1;
+    int res = (charge_detect >= CHANNELS - 2) ? majority_scheme(charges) : -1;
 
     return res;
 }
@@ -948,11 +950,13 @@ Parameters::majority_scheme(const ChannelsArray& z/*, double radius */) const
         ChannelsArray delta;
 //        bool big = true;
         for ( int j = 0; j < CHANNELS; ++j) {
-            double diff = z[j] - double(i);
-            delta[j] = diff;
-            r += diff * diff;
+//            if (j == 0 || j == 1 || j == 3) {
+                double diff = z[j] - double(i);
+                delta[j] = diff;
+                r += diff * diff;
 //            if (delta[j] < 0.)
 //                big = false;
+//            }
         }
 
 //        bool border = fabs(delta[0]) + fabs(delta[CHANNELS - 1]) <= 1.0;
