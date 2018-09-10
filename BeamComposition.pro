@@ -81,7 +81,7 @@ HEADERS  += mainwindow.h \
     rundetailslistwidgetitem.h \
     open62541.h \
     opcuaclient.h \
-    opecuaclientdialog.h
+    opcuaclientdialog.h
 
 FORMS    += mainwindow.ui \
     rootcanvasdialog.ui \
@@ -89,11 +89,21 @@ FORMS    += mainwindow.ui \
     signalvaluedialog.ui \
     opcuaclientdialog.ui
 
-unix:LIBS += -lftd2xx
-
 RESOURCES += BeamComposition.qrc
 
 TRANSLATIONS += BeamComposition_ru.ts
 
-win32:LIBS += -L$$PWD/../FTDI_DriverNew/i386/ -lftd2xx
-win32:INCLUDEPATH += $$PWD/../FTDI_DriverNew
+#unix:LIBS += -lftd2xx
+unix {
+#    CONFIG += link_pkgconfig
+#    PKGCONFIG += open62541
+    LIBS += -lftd2xx
+}
+
+#win32:LIBS += -L$$PWD/../FTDI_DriverNew/i386/ -lftd2xx
+#win32:INCLUDEPATH += $$PWD/../FTDI_DriverNew
+win32 {
+    LIBS += -L$$PWD/../FTDI_DriverNew/i386/ -lftd2xx
+    INCLUDEPATH += C:\root\include
+    INCLUDEPATH += $$PWD/../FTDI_DriverNew
+}
