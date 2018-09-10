@@ -40,8 +40,8 @@ typedef std::list< unsigned char > DataList;
 typedef std::vector< unsigned char > DataVector;
 typedef std::queue< DataVector > DataQueue;
 
-// pair.first: mu -- mean, average value
-// pair.second: sigma -- RMS, sqrt(variance)
+// SignalPair.first: mu -- mean, average value
+// SignalPair.second: sigma -- RMS, sqrt(variance)
 typedef std::pair< double, double > SignalPair;
 typedef std::array< SignalPair, CHANNELS > SignalArray;
 typedef std::map< double, SignalArray > ReferenceSignalMap;
@@ -51,7 +51,22 @@ typedef std::map< int, SignalPair > ChargeSignalMap;
 enum RunType {
     RUN_BACKGROUND,
     RUN_FIXED_POSITION,
-    RUN_SCANNING
+    RUN_SCANNING,
+    RUN_EXTERNAL_COMMAND
+};
+
+// System state for information
+enum StateType {
+    STATE_DEVICE_DISCONNECTED = 0x00,
+    STATE_DEVICE_CONNECTED = 0x01,
+    STATE_ACQUISITION_BACKGROUND = 0x02,
+    STATE_ACQUISITION_FIXED_POSITION = 0x04,
+    STATE_ACQUISITION_SCANNING = 0x08,
+    STATE_ACQUISITION_EXTERNAL_COMMAND = 0x10,
+    STATE_POSITION_MOVE = 0x20,
+    STATE_POSITION_REMOVE = 0x40,
+    STATE_POSITION_FINISH = 0x80,
+    STATE_NONE = 0xFF
 };
 
 enum DiagramType {

@@ -38,6 +38,8 @@
 #include <QThreadPool>
 #include <QDebug>
 
+#include <cstdio>
+
 #include <typeinfo>
 
 #if defined(Q_OS_WIN32) && defined(__MINGW32__)
@@ -52,6 +54,7 @@
 #include "writeprocess.h"
 #include "rootcanvasdialog.h"
 #include "settingsdialog.h"
+#include "opcuaclientdialog.h"
 
 #include "backgroundvaluedelegate.h"
 #include "signalvaluedelegate.h"
@@ -62,6 +65,8 @@
 #include "diagramparameters.h"
 #include "channelscountsfit.h"
 #include "channelschargefit.h"
+
+#include "opcuaclient.h"
 
 #include "ui_mainwindow.h"
 #include "mainwindow.h"
@@ -168,7 +173,9 @@ MainWindow::MainWindow(QWidget *parent)
     QMainWindow(parent),
     ui(new Ui::MainWindow),
     timer(new QTimer(this)),
-    timerdata(new QTimer(this)),
+    timer_data(new QTimer(this)),
+    timer_opcua(new QTimer(this)),
+    timer_heartbeat(new QTimer(this)),
     channel_a(nullptr),
     channel_b(nullptr),
     filerun(nullptr),
@@ -182,7 +189,10 @@ MainWindow::MainWindow(QWidget *parent)
         tr("Abort Process"), 0, 0, this)),
     settings(new QSettings( "BeamComposition", "configure")),
     flag_background(false),
-    flag_write_run(true)
+    flag_write_run(true),
+    sys_state(STATE_DEVICE_DISCONNECTED),
+    opcua_client(new OpcUaClient(this)),
+    opcua_dialog(nullptr)
 {
     ui->setupUi(this);
 
@@ -238,6 +248,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect( ui->actionOpenBackRun, SIGNAL(triggered()), this, SLOT(openBackRun()));
     connect( ui->actionSaveRun, SIGNAL(triggered()), this, SLOT(saveRun()));
     connect( ui->actionSettings, SIGNAL(triggered()), this, SLOT(setRunSettings()));
+    connect( ui->actionOpcUaClient, SIGNAL(triggered(bool)), this, SLOT(opcUaClientDialog(bool)));
     connect( ui->actionDetailsClearAll, SIGNAL(triggered()), this, SLOT(detailsClear()));
     connect( ui->actionDetailsSelectAll, SIGNAL(triggered()), this, SLOT(detailsSelectAll()));
     connect( ui->actionDetailsSelectNone, SIGNAL(triggered()), this, SLOT(detailsSelectNone()));
@@ -269,6 +280,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect( ui->updateDataButtonGroup, SIGNAL(buttonClicked(int)), this, SLOT(dataUpdateChanged(int)));
 
     connect( timer, SIGNAL(timeout()), this, SLOT(handle_root_events()));
+    connect( timer_opcua, SIGNAL(timeout()), opcua_client, SLOT(iterate()));
+    connect( timer_heartbeat, SIGNAL(timeout()), this, SLOT(onOpcUaTimeout()));
 
     connect( command_thread, SIGNAL(started()), this, SLOT(commandThreadStarted()));
     connect( command_thread, SIGNAL(finished()), this, SLOT(commandThreadFinished()));
@@ -285,6 +298,18 @@ MainWindow::MainWindow(QWidget *parent)
     connect( profile_thread, SIGNAL(finished()), this, SLOT(processFileFinished()));
     connect( profile_thread, SIGNAL(progress(int)), progress_dialog, SLOT(setValue(int)));
     connect( progress_dialog, SIGNAL(canceled()), profile_thread, SLOT(stop()));
+
+    connect( this, SIGNAL(signalStateChanged(StateType)), opcua_client, SLOT(writeStateValue(StateType)));
+    connect( this, SIGNAL(signalBeamSpectrumChanged(RunInfo::BeamSpectrumArray,RunInfo::BeamSpectrumArray,QDateTime)),
+        opcua_client, SLOT(writeBeamSpectrumValue(RunInfo::BeamSpectrumArray,RunInfo::BeamSpectrumArray,QDateTime)));
+    connect( this, SIGNAL(signalBeamSpectrumChanged(RunInfo::BeamSpectrumArray,RunInfo::BeamSpectrumArray,QDateTime)),
+        opcua_client, SLOT(writeBeamSpectrumValue(RunInfo::BeamSpectrumArray,RunInfo::BeamSpectrumArray,QDateTime)));
+
+    connect( opcua_client, SIGNAL(externalCommandChanged( int, QDateTime)),
+        this, SLOT(externalSignalReceived( int, QDateTime)));
+    connect( opcua_client, SIGNAL(connected()), this, SLOT(onOpcUaClientConnected()));
+    connect( opcua_client, SIGNAL(connected()), timer_heartbeat, SLOT(start()));
+    connect( opcua_client, SIGNAL(disconnected()), timer_heartbeat, SLOT(stop()));
 
     ui->runDetailsListWidget->addAction(ui->actionDetailsSelectAll);
     ui->runDetailsListWidget->addAction(ui->actionDetailsSelectNone);
@@ -306,19 +331,30 @@ MainWindow::MainWindow(QWidget *parent)
     ui->runDetailsListWidget->setContextMenuPolicy(Qt::ActionsContextMenu);
 
     progress_dialog->setWindowModality(Qt::WindowModal);
+    progress_dialog->setWindowTitle(tr("Progress"));
 
     timer->start(20);
 
     int update_period = settings->value( "update-timeout", 3).toInt() * 1000;
-    timerdata->setInterval(update_period);
+    timer_data->setInterval(update_period);
+
+    update_period = settings->value( "opcua-update-timeout", 2).toInt() * 1000;    
+    timer_opcua->setInterval(update_period);
+    timer_heartbeat->setInterval(update_period);
+    timer_opcua->start();
+
+    bool opcua_at_startup = settings->value( "opcua-connect-startup", false).toBool();
+    if (opcua_at_startup) {
+        QTimer::singleShot( 0, this, SLOT(opcUaClientDialog()));
+    }
 
     ui->treeWidget->expandAll();
 }
 
 MainWindow::~MainWindow()
 {
-    timerdata->stop();
-    delete timerdata;
+    timer_data->stop();
+    delete timer_data;
 
     timer->stop();
     delete timer;
@@ -357,9 +393,12 @@ MainWindow::~MainWindow()
         filedat->close();
         delete filedat;
     }
-
+/*
     delete progress_dialog;
-
+    delete opcua_client;
+    if (opcua_dialog)
+        delete opcua_dialog;
+*/
     delete settings;
     delete ui;
 }
@@ -643,15 +682,20 @@ MainWindow::motorItemChanged(int value)
     switch (value) {
     case 0:
         message = QString(tr("Motor stopped"));
+        sys_state = STATE_POSITION_FINISH;
         break;
     case 1:
         message = QString(tr("Hide away"));
+        sys_state = STATE_POSITION_REMOVE;
         break;
     case 2:
     default:
         message = QString(tr("Move out"));
+        sys_state = STATE_POSITION_MOVE;
         break;
     }
+    emit signalStateChanged(sys_state);
+
     statusBar()->showMessage( message, 1000);
 }
 
@@ -924,7 +968,7 @@ MainWindow::startRun()
     }
 
     if (ui->dataUpdateAutoRadioButton->isChecked())
-        timerdata->start();
+        timer_data->start();
 
     acquire_thread->start();
     process_thread->start();
@@ -934,7 +978,7 @@ void
 MainWindow::stopRun()
 {
     if (ui->dataUpdateAutoRadioButton->isChecked())
-        timerdata->stop();
+        timer_data->stop();
 
     acquire_thread->stop();
     process_thread->stop();
@@ -1015,16 +1059,20 @@ MainWindow::runTypeChanged(int id)
     flag_background = false;
 
     if (rbutton == ui->backgroundRunRadioButton) {
+        sys_state = STATE_ACQUISITION_BACKGROUND;
         flag_background = true;
         ui->triggersComboBox->setEnabled(false);
         ui->triggersComboBox->setCurrentIndex(4); // "T004"
         process_thread->setBackground(true);
     }
     else if (rbutton == ui->fixedRunRadioButton) {
+        sys_state = STATE_ACQUISITION_FIXED_POSITION;
         ui->triggersComboBox->setEnabled(true);
         ui->triggersComboBox->setCurrentIndex(0);
         process_thread->setBackground(false);
     }
+
+    emit signalStateChanged(sys_state);
 }
 
 void
@@ -1040,7 +1088,7 @@ MainWindow::dataUpdateChanged(int id)
     if (rbutton == ui->dataUpdateStartRadioButton) {
         qDebug() << "Extraction signal update";
 //        flag_batch_state = false;
-        disconnect( timerdata, SIGNAL(timeout()), this, SLOT(processData()));
+        disconnect( timer_data, SIGNAL(timeout()), this, SLOT(processData()));
         connect( command_thread, SIGNAL(signalExternalSignal()), this, SLOT(externalSignalReceived()));
         connect( command_thread, SIGNAL(signalNewBatchState(bool)), this, SLOT(newBatchStateReceived(bool)));
         delay_time = ui->delayTimeComboBox->currentIndex();
@@ -1050,7 +1098,7 @@ MainWindow::dataUpdateChanged(int id)
     else if (rbutton == ui->dataUpdateAutoRadioButton) {
         qDebug() << "Automatic timeout update";
 //        flag_batch_state = true;
-        connect( timerdata, SIGNAL(timeout()), this, SLOT(processData()));
+        connect( timer_data, SIGNAL(timeout()), this, SLOT(processData()));
         disconnect( command_thread, SIGNAL(signalExternalSignal()), this, SLOT(externalSignalReceived()));
         disconnect( command_thread, SIGNAL(signalNewBatchState(bool)), this, SLOT(newBatchStateReceived(bool)));
     }
@@ -1087,7 +1135,7 @@ MainWindow::setRunSettings()
         rundir = settings->value( "run-directory", "/home").toString();
         flag_write_run = settings->value( "write-run", true).toBool();
         int update_period = settings->value( "update-timeout", 3).toInt() * 1000;
-        timerdata->setInterval(update_period);
+        timer_data->setInterval(update_period);
 
         updateDiagrams();
     }
@@ -1303,6 +1351,9 @@ MainWindow::connectDevices()
 
     FT_STATUS ftStatus = FT_OpenEx( name, FT_OPEN_BY_DESCRIPTION, &channel_a);
     if (!FT_SUCCESS(ftStatus)) {
+        sys_state = STATE_DEVICE_DISCONNECTED;
+        emit signalStateChanged(sys_state);
+
         QMessageBox::warning( this, tr("Unable to open the FT2232H device"), \
             tr("Error during connection of FT2232H Channel A. This can fail if the ftdi_sio\n" \
                "driver is loaded, use lsmod to check this and rmmod ftdi_sio\n" \
@@ -1320,6 +1371,9 @@ MainWindow::connectDevices()
 
     ftStatus = FT_OpenEx( name, FT_OPEN_BY_DESCRIPTION, &channel_b);
     if (!FT_SUCCESS(ftStatus)) {
+        sys_state = STATE_DEVICE_DISCONNECTED;
+        emit signalStateChanged(sys_state);
+
         QMessageBox::warning( this, tr("Unable to open the FT2232H device"), \
             tr("Error during connection of FT2232H Channel B. This can fail if the ftdi_sio\n" \
                "driver is loaded, use lsmod to check this and rmmod ftdi_sio\n" \
@@ -1366,6 +1420,9 @@ MainWindow::connectDevices()
     ui->dataUpdateAutoRadioButton->setChecked(true);
     int button_id = ui->updateDataButtonGroup->id(ui->dataUpdateAutoRadioButton);
     dataUpdateChanged(button_id);
+
+    sys_state = STATE_DEVICE_CONNECTED;
+    emit signalStateChanged(sys_state);
 }
 
 void
@@ -1388,10 +1445,10 @@ MainWindow::disconnectDevices()
         std::cerr << "FT2232H Channel B close error." << std::endl;
     }
 
-    if (timerdata->isActive())
-        timerdata->stop();
+    if (timer_data->isActive())
+        timer_data->stop();
 
-    disconnect( timerdata, SIGNAL(timeout()), this, SLOT(processData()));
+    disconnect( timer_data, SIGNAL(timeout()), this, SLOT(processData()));
     disconnect( command_thread, SIGNAL(signalExternalSignal()), this, SLOT(externalSignalReceived()));
     disconnect( command_thread, SIGNAL(signalNewBatchState(bool)), this, SLOT(newBatchStateReceived(bool)));
 
@@ -1403,6 +1460,9 @@ MainWindow::disconnectDevices()
     ui->runTypeGroupBox->setEnabled(false);
     ui->startRunButton->setEnabled(false);
     ui->stopRunButton->setEnabled(false);
+
+    sys_state = STATE_DEVICE_DISCONNECTED;
+    emit signalStateChanged(sys_state);
 }
 
 void
@@ -1424,9 +1484,9 @@ MainWindow::acquireDeviceError()
 }
 
 void
-MainWindow::externalSignalReceived()
+MainWindow::externalSignalReceived( int value, const QDateTime& timestamp)
 {
-    qDebug() << "GUI: External signal received";
+    qDebug() << "GUI: External signal received: " << value << " timestamp: " << timestamp.toString();
 }
 
 /// if rising edge (state is high), then process data
@@ -1494,7 +1554,7 @@ MainWindow::processTextFile( QFile* runfile, QList<QListWidgetItem *>& items)
 }
 
 bool
-MainWindow::processRawFile( QFile* runfile, QList<QListWidgetItem *>& items)
+MainWindow::processRawFile( QFile* runfile, QList<QListWidgetItem*>& items)
 {
     QDataStream in(runfile);
     in.setByteOrder(QDataStream::LittleEndian);
@@ -1527,8 +1587,8 @@ void
 MainWindow::processData()
 {
     if (ui->dataUpdateAutoRadioButton->isChecked()) {
-        qDebug() << "GUI: timerdata stopped";
-        timerdata->stop();
+        qDebug() << "GUI: data timer is stopped";
+        timer_data->stop();
     }
 
     CountsList countslist;
@@ -1538,7 +1598,7 @@ MainWindow::processData()
     size_t listsize = countslist.size();
     statusBar()->showMessage( tr("Events received: %1").arg(listsize), 1000);
 
-    QDateTime dtime = QDateTime::currentDateTime();
+    QDateTime datetime = QDateTime::currentDateTime();
 
     // process data
     RunInfo batch_info;
@@ -1546,7 +1606,7 @@ MainWindow::processData()
         batch_info = batchCountsReceived(countslist);
 
     if (filerun && filedat)
-        batchDataReceived( datalist, dtime);
+        batchDataReceived( datalist, datetime);
 
     int batch_counts = ui->runDetailsListWidget->count();
 
@@ -1563,7 +1623,7 @@ MainWindow::processData()
         (batch_counts + 1), datalist.size(), countslist.size(), \
         batch_data_offset, ui->runDetailsListWidget);
 */
-    RunDetailsListWidgetItem* item = new RunDetailsListWidgetItem( dtime, \
+    RunDetailsListWidgetItem* item = new RunDetailsListWidgetItem( datetime, \
         (batch_counts + 1), datalist.size(),
         batch_info.counted(), batch_info.processed(), \
         batch_data_offset, ui->runDetailsListWidget);
@@ -1575,9 +1635,14 @@ MainWindow::processData()
     }
     updateRunInfo();
 
+    RunInfo::BeamSpectrumArray batch_array = batch_info.averageComposition();
+    RunInfo::BeamSpectrumArray mean_array = runinfo.averageComposition();
+
+    emit signalBeamSpectrumChanged( batch_array, mean_array, datetime);
+
     if (ui->dataUpdateAutoRadioButton->isChecked()) {
-        qDebug() << "GUI: timerdata started";
-        timerdata->start();
+        qDebug() << "GUI: data timer is started";
+        timer_data->start();
     }
 }
 
@@ -1669,6 +1734,45 @@ MainWindow::batchDataReceived( const DataList& datalist, const QDateTime& dt)
 }
 
 void
+MainWindow::opcUaClientDialog(bool state)
+{
+    QString opcua_path = settings->value( "opcua-server-path", "opc.tcp://localhost").toString();
+    int opcua_port = settings->value( "opcua-server-port", 4840).toInt();
+
+    QString server_path = QString("%1:%2").arg(opcua_path).arg(opcua_port);
+
+    if (!opcua_dialog) {
+        opcua_dialog = new OpcUaClientDialog( server_path, opcua_client, state, this);
+        connect( this, SIGNAL(signalBeamSpectrumChanged(RunInfo::BeamSpectrumArray,RunInfo::BeamSpectrumArray,QDateTime)),
+            opcua_dialog, SLOT(setBreamSpectrumValue(RunInfo::BeamSpectrumArray,RunInfo::BeamSpectrumArray,QDateTime)));
+        connect( opcua_client, SIGNAL(externalCommandChanged( int, QDateTime)),
+            opcua_dialog, SLOT(setExtCommandValue( int, QDateTime)));
+        connect( this, SIGNAL(signalStateChanged(StateType)), opcua_dialog, SLOT(setState(StateType)));
+    }
+    if (opcua_dialog)
+        opcua_dialog->show();
+}
+/*
+void
+MainWindow::opcUaStartUp()
+{
+    QString opcua_path = settings->value( "opcua-server-path", "opc.tcp://localhost").toString();
+    int opcua_port = settings->value( "opcua-server-port", 4840).toInt();
+
+    QString server_path = QString("%1:%2").arg(opcua_path).arg(opcua_port);
+
+    if (!opcua_dialog) {
+        opcua_dialog = new OpcUaClientDialog( server_path, opcua_client, true, this);
+        connect( this, SIGNAL(signalBeamSpectrumChanged(RunInfo::BeamSpectrumArray,RunInfo::BeamSpectrumArray,QDateTime)),
+            opcua_dialog, SLOT(setBreamSpectrumValue(RunInfo::BeamSpectrumArray,RunInfo::BeamSpectrumArray,QDateTime)));
+        connect( opcua_client, SIGNAL(externalCommandChanged( int, QDateTime)),
+            opcua_dialog, SLOT(externalSignalReceived( int, QDateTime)));
+    }
+    if (opcua_dialog)
+        opcua_dialog->show();
+}
+*/
+void
 MainWindow::saveSettings(QSettings* set)
 {
     int i = 0;
@@ -1751,6 +1855,12 @@ MainWindow::closeEvent(QCloseEvent* event)
     }
 
     if (res == QMessageBox::Yes) {
+        if (opcua_client && opcua_client->isConnected()) {
+            int value = 0;
+            QDateTime now = QDateTime::currentDateTime();
+            bool res = opcua_client->writeHeartBeatValue( value, now);
+            std::cout << "OPC UA HeartBeat result: " << res << ", value: " << value << std::endl;
+        }
         saveSettings(settings);
         event->accept();
     }
@@ -2058,4 +2168,27 @@ MainWindow::detailsItemSelectionChanged()
     else {
         ui->processPushButton->setEnabled(false);
     }
+}
+
+void
+MainWindow::onOpcUaClientConnected()
+{
+    ui->statusBar->showMessage( "OPC UA server connection successfull", 1000);
+}
+
+void
+MainWindow::onOpcUaTimeout()
+{
+    if (opcua_client && opcua_client->isConnected()) {
+        int value = 1;
+        QDateTime now = QDateTime::currentDateTime();
+        bool res = opcua_client->writeHeartBeatValue( value, now);
+        if (opcua_dialog && res) opcua_dialog->setHeatBeatValue( value, now);
+//        std::cout << "OPC UA HeartBeat result: " << res << ", value: " << value << std::endl;
+    }
+}
+
+void
+MainWindow::onOpcUaClientDisconnected()
+{
 }

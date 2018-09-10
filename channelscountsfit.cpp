@@ -172,9 +172,9 @@ const struct ChargeCountsSignals {
 double* fit_data[SIZE] = {};
 
 double
-splfit( double w, double *x, double *y, double *z, int m, double tn)
+ccmath_splfit( double w, double *x, double *y, double *z, int m, double tn)
 {
-    return (tn != 0.) ? tnsfit( w, x, y, z, m, tn) : csfit( w, x, y, z, m);
+    return (tn != 0.) ? ccmath_tnsfit( w, x, y, z, m, tn) : ccmath_csfit( w, x, y, z, m);
 }
 /*
 const double mc2e = 511000.; // eV
@@ -569,10 +569,10 @@ Parameters::recalculate()
 
     size_t fitn = n - 1;
 
-    cspl( y1, x, p1, fitn, tension_parameter);
-    cspl( y2, x, p2, fitn, tension_parameter);
-    cspl( y3, x, p3, fitn, tension_parameter);
-    cspl( y4, x, p4, fitn, tension_parameter);
+    ccmath_cspl( y1, x, p1, fitn, tension_parameter);
+    ccmath_cspl( y2, x, p2, fitn, tension_parameter);
+    ccmath_cspl( y3, x, p3, fitn, tension_parameter);
+    ccmath_cspl( y4, x, p4, fitn, tension_parameter);
 /*
     double* ylin = y4;
     switch (reference_channel) {
@@ -663,7 +663,7 @@ Parameters::fit( const CountsList& list, Diagrams& d, bool background_flag)
 
             skip = false;
             for ( int i = 0; i < CHANNELS; ++i) {
-                values[i] = channel_amp[i] * splfit( values[i], yy[i], x, pp[i], fitn, tension_parameter);
+                values[i] = channel_amp[i] * ccmath_splfit( values[i], yy[i], x, pp[i], fitn, tension_parameter);
 //                values[i] = splfit( values[i], yy[i], x, pp[i], fitn, tension_parameter);
                 if (values[i] <= 0.)
                     skip = true;
@@ -697,7 +697,7 @@ Parameters::fit( const CountsList& list, Diagrams& d, bool background_flag)
             d.fit_mean->Fill(mean);
 
             if (z > 0) {
-
+                size_t& charge_event = charge_events[z - 1];
                 d.z12->Fill( charge[0], charge[1]);
                 d.z23->Fill( charge[1], charge[2]);
                 d.z34->Fill( charge[2], charge[3]);
@@ -712,7 +712,7 @@ Parameters::fit( const CountsList& list, Diagrams& d, bool background_flag)
                 d.c13->Fill( values[0], values[2]);
                 d.c24->Fill( values[1], values[3]);
 
-                charge_events[z - 1]++; // increase a number of proccessed events for particular charge
+                charge_event++; // increase a number of proccessed events for particular charge
                 events_processed++; // increase a number of all proccessed events
 
                 ChannelsArray tmp(charge);
@@ -721,8 +721,6 @@ Parameters::fit( const CountsList& list, Diagrams& d, bool background_flag)
                 double charge_rank2 = (tmp[1] + tmp[2]) / 2.;
                 d.z->Fill(charge_rank2); // rank 2
                 d.z2->Fill(charge_rank2 * charge_rank2);
-            }
-            else {
             }
         }
     }

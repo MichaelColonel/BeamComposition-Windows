@@ -44,3 +44,19 @@ protected:
     std::queue< std::string > commands;
     char* buffer;
 };
+
+class ExternalCommandThread : public AcquireThread {
+    Q_OBJECT
+public:
+    explicit ExternalCommandThread(QObject* parent = 0);
+    virtual ~ExternalCommandThread();
+    void initiate(int spills = -1);
+
+public slots:
+    void setState(StateType);
+
+protected:
+    virtual void run();
+
+    int nof_spills;
+};

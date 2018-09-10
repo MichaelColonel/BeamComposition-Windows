@@ -54,7 +54,7 @@
        <enum>QFrame::NoFrame</enum>
       </property>
       <property name="currentIndex">
-       <number>1</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="acquisitionPage">
        <property name="geometry">
@@ -62,7 +62,7 @@
          <x>0</x>
          <y>0</y>
          <width>277</width>
-         <height>784</height>
+         <height>787</height>
         </rect>
        </property>
        <attribute name="label">
@@ -414,6 +414,13 @@
                    </widget>
                   </item>
                   <item>
+                   <widget class="QRadioButton" name="extCommandRadioButton">
+                    <property name="text">
+                     <string>External Command</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
                    <widget class="QRadioButton" name="scanningRunRadioButton">
                     <property name="text">
                      <string>Scanning</string>
@@ -575,8 +582,8 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>290</width>
-         <height>571</height>
+         <width>141</width>
+         <height>133</height>
         </rect>
        </property>
        <attribute name="label">
@@ -622,8 +629,8 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>290</width>
-         <height>571</height>
+         <width>229</width>
+         <height>291</height>
         </rect>
        </property>
        <property name="sizePolicy">
@@ -837,7 +844,7 @@
      <x>0</x>
      <y>0</y>
      <width>308</width>
-     <height>28</height>
+     <height>26</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -871,6 +878,7 @@
    <addaction name="actionSaveRun"/>
    <addaction name="separator"/>
    <addaction name="actionSettings"/>
+   <addaction name="actionOpcUaClient"/>
    <addaction name="separator"/>
    <addaction name="actionQuit"/>
   </widget>
@@ -1031,6 +1039,18 @@
    </property>
    <property name="toolTip">
     <string>Multiple batches selection</string>
+   </property>
+  </action>
+  <action name="actionOpcUaClient">
+   <property name="icon">
+    <iconset resource="BeamComposition.qrc">
+     <normaloff>:/icons/Sc_insertrows.png</normaloff>:/icons/Sc_insertrows.png</iconset>
+   </property>
+   <property name="text">
+    <string>OPC UA Client Dialog...</string>
+   </property>
+   <property name="toolTip">
+    <string>OPC UA connection and nodes</string>
    </property>
   </action>
  </widget>

@@ -27,7 +27,6 @@
 
 
 #include <ftd2xx.h>
-
 #include "channelscountsfit.h"
 
 #include "runinfo.h"
@@ -45,6 +44,8 @@ class QCloseEvent;
 class QProgressDialog;
 class QSettings;
 class QDateTime;
+class QStateMachine;
+class QState;
 
 class CommandThread;
 class AcquireThread;
@@ -52,6 +53,8 @@ class ProcessThread;
 class ProcessFileThread;
 class DiagramTreeWidgetItem;
 class RootCanvasDialog;
+class OpcUaClient;
+class OpcUaClientDialog;
 
 class MainWindow : public QMainWindow
 {
@@ -66,15 +69,19 @@ protected:
 
 signals:
     void updateDiagram();
+    void signalStateChanged(StateType);
+    void signalBeamSpectrumChanged( const RunInfo::BeamSpectrumArray& batch_array,
+        const RunInfo::BeamSpectrumArray& mean_array, const QDateTime& datetime);
 
 private slots:
     void handle_root_events();
     void treeWidgetItemDoubleClicked( QTreeWidgetItem*, int);
     void treeWidgetItemClicked( QTreeWidgetItem*, int);
     void runDetailsSelectionTriggered(QAction*);
-    void externalSignalReceived();
+    void externalSignalReceived( int, const QDateTime&);
     void newBatchStateReceived(bool);
     void movementFinished();
+    void opcUaClientDialog(bool state = true);
     void commandThreadStarted();
     void commandThreadFinished();
     void acquireThreadStarted();
@@ -113,6 +120,9 @@ private slots:
     void detailsItemSelectionChanged();
     void processBatchesClicked();
     void processData();
+    void onOpcUaTimeout();
+    void onOpcUaClientConnected();
+    void onOpcUaClientDisconnected();
 
 private:
     QString processTextFile( QFile* runfile, QList<QListWidgetItem*>& items);
@@ -123,7 +133,6 @@ private:
     void loadSettings(QSettings* set);
     void deviceError( FT_HANDLE, FT_STATUS);
 
-
     void createTreeWidgetItems();
     void createRootHistograms();
     RootCanvasDialog* createCanvasDialog(DiagramTreeWidgetItem*);
@@ -131,7 +140,9 @@ private:
 
     Ui::MainWindow* ui;
     QTimer* timer; // ROOT GUI update timer
-    QTimer* timerdata; // data update timer
+    QTimer* timer_data; // data update timer
+    QTimer* timer_opcua; // OPC UA iterate timer
+    QTimer* timer_heartbeat; // OPC UA heartbeat timer
 
     FT_HANDLE channel_a;
     FT_HANDLE channel_b;
@@ -153,4 +164,7 @@ private:
 //    bool flag_batch_state; // if "true" then process data, if "false" - do not process them
     SharedFitParameters params;
     RunInfo runinfo;
+    StateType sys_state;
+    OpcUaClient* opcua_client;
+    OpcUaClientDialog* opcua_dialog;
 };

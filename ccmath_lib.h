@@ -32,9 +32,9 @@
 extern "C" {
 #endif
 
-void cspl(double *x,double *y,double *z,int m,double tn);
-double csfit(double w,double *x,double *y,double *z,int m);
-double tnsfit(double w,double *x,double *y,double *z,int m,double tn);
+void ccmath_cspl(double *x,double *y,double *z,int m,double tn);
+double ccmath_csfit(double w,double *x,double *y,double *z,int m);
+double ccmath_tnsfit(double w,double *x,double *y,double *z,int m,double tn);
 
 #ifdef __cplusplus
 }

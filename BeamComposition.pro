@@ -54,7 +54,10 @@ SOURCES += main.cpp \
     channelschargefit.cpp \
     commandthread.cpp \
     chargevaluedelegate.cpp \
-    rundetailslistwidgetitem.cpp
+    rundetailslistwidgetitem.cpp \
+    open62541.c \
+    opcuaclient.cpp \
+    opcuaclientdialog.cpp
 
 HEADERS  += mainwindow.h \
     canvas.h \
@@ -75,12 +78,16 @@ HEADERS  += mainwindow.h \
     channelschargefit.h \
     commandthread.h \
     chargevaluedelegate.h \
-    rundetailslistwidgetitem.h
+    rundetailslistwidgetitem.h \
+    open62541.h \
+    opcuaclient.h \
+    opecuaclientdialog.h
 
 FORMS    += mainwindow.ui \
     rootcanvasdialog.ui \
     settingsdialog.ui \
-    signalvaluedialog.ui
+    signalvaluedialog.ui \
+    opcuaclientdialog.ui
 
 unix:LIBS += -lftd2xx
 
